@@ -1,0 +1,19 @@
+{
+  "name": "server",
+  "version": "1.0.0",
+  "main": "index.js",
+  "license": "MIT",
+  "devDependencies": {
+    "concurrently": "^7.5.0",
+    "esbuild": "^0.15.13",
+    "tailwindcss": "^3.2.2"
+  },
+  "scripts": {
+    "watch:css": "tailwindcss -i assets/src/input.css -o ./assets/output/dist.css --watch",
+    "watch:js": "esbuild --bundle --sourcemap --minify --target=es2020 --format=esm --watch --outdir=assets/output/ assets/src/*.ts",
+    "watch": "concurrently \"yarn watch:css\" \"yarn watch:js\"",
+    "build:css": "tailwindcss -i assets/src/input.css -o ./assets/output/dist.css",
+    "build:js": "esbuild --bundle --sourcemap --minify --target=es2020 --format=esm --outdir=assets/output/ assets/src/*.ts",
+    "build": "yarn build:css && yarn build:js"
+  }
+}
