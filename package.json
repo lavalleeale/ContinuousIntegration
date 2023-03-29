@@ -15,5 +15,8 @@
     "build:css": "tailwindcss -i assets/src/input.css -o ./assets/output/dist.css",
     "build:js": "esbuild --bundle --sourcemap --minify --target=es2020 --format=esm --outdir=assets/output/ assets/src/*.ts",
     "build": "yarn build:css && yarn build:js"
+  },
+  "dependencies": {
+    "ansi-to-html": "git+https://github.com/lavalleeale/ansi-to-html#patch-1"
   }
 }

@@ -40,10 +40,16 @@ type Build struct {
 type Container struct {
 	ID int
 
-	Name    string
-	Code    *int
-	Command string
-	Log     string
+	Name               string
+	Code               *int
+	Command            string
+	Image              string
+	Environment        *string
+	ServiceCommand     *string
+	ServiceImage       *string
+	ServiceHealthcheck *string
+	ServiceEnvironment *string
+	Log                string
 
 	BuildID int
 	Build   Build `ref:"build_id" fk:"id"`

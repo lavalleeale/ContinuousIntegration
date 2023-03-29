@@ -62,6 +62,7 @@ func AttachContainer(c *websocket.Conn, BuildID string, ContainerID string) {
 	containers, err := lib.Cli.ContainerList(context.TODO(), types.ContainerListOptions{All: true, Size: true, Filters: filters})
 
 	if err != nil || len(containers) == 0 {
+		log.Println(err)
 		c.WriteJSON(gin.H{"error": "build not found"})
 		return
 	}
@@ -69,7 +70,8 @@ func AttachContainer(c *websocket.Conn, BuildID string, ContainerID string) {
 	response, err := lib.Cli.ContainerAttach(context.TODO(), containers[0].ID, types.ContainerAttachOptions{Stream: true, Stdout: true, Logs: true, Stderr: true})
 
 	if err != nil {
-		c.WriteJSON(gin.H{"error": "build not found"})
+		log.Println(err)
+		c.WriteJSON(gin.H{"error": "attach failed"})
 		return
 	}
 
@@ -79,7 +81,7 @@ func AttachContainer(c *websocket.Conn, BuildID string, ContainerID string) {
 		p := make([]byte, 1)
 		_, err := response.Reader.Read(p)
 		response.Reader.Discard(3)
-		var length int32
+		var length uint32
 		binary.Read(response.Reader, binary.BigEndian, &length)
 		if err != nil {
 			if err == io.EOF {

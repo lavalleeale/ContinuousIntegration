@@ -3,7 +3,9 @@ package handlers
 import (
 	"context"
 	"fmt"
+	"log"
 	"net/http"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/gin-gonic/gin/binding"
@@ -16,9 +18,18 @@ func StartBuild(c *gin.Context) {
 	var data struct {
 		Command string `form:"command"`
 	}
+
 	var containers []struct {
-		ID      string `json:"repo_id"`
-		Command string `json:"command"`
+		ID          string               `json:"id"`
+		Steps       []string             `json:"steps"`
+		Image       string               `json:"image"`
+		Environment *[]map[string]string `json:"environment,omitempty"`
+		Service     *struct {
+			Steps       *[]string            `json:"steps,omitempty"`
+			Environment *[]map[string]string `json:"environment,omitempty"`
+			Image       string               `json:"image"`
+			Healthcheck string               `json:"healthcheck"`
+		} `json:"service,omitempty"`
 	}
 
 	c.ShouldBind(&data)
@@ -41,18 +52,52 @@ func StartBuild(c *gin.Context) {
 	var build = db.Build{RepoID: repo.ID, Containers: []db.Container{}}
 
 	for _, container := range containers {
-		build.Containers = append(build.Containers, db.Container{Name: container.ID, Command: container.Command})
+		savedContainer := db.Container{
+			Name:    container.ID,
+			Command: strings.Join(container.Steps, " && "),
+			Image:   container.Image,
+		}
+		if container.Environment != nil {
+			var environment = make([]string, 0)
+			for _, item := range *container.Environment {
+				for k, v := range item {
+					environment = append(environment, fmt.Sprintf("%s=%s", k, v))
+				}
+			}
+			environmentString := strings.Join(environment, ",")
+			savedContainer.Environment = &environmentString
+		}
+		if container.Service != nil {
+			savedContainer.ServiceImage = &container.Service.Image
+			savedContainer.ServiceHealthcheck = &container.Service.Healthcheck
+			if container.Service.Steps != nil {
+				command := strings.Join(*container.Service.Steps, " && ")
+				savedContainer.ServiceCommand = &command
+			}
+			if container.Service.Environment != nil {
+				var environment = make([]string, 0)
+				for _, item := range *container.Service.Environment {
+					for k, v := range item {
+						environment = append(environment, fmt.Sprintf("%s=%s", k, v))
+					}
+				}
+				environmentString := strings.Join(environment, ",")
+				savedContainer.ServiceEnvironment = &environmentString
+			}
+		}
+		build.Containers = append(build.Containers, savedContainer)
 	}
 
 	err := db.Db.Insert(context.TODO(), &build)
 
 	if err != nil {
+		log.Println(err)
 		c.Redirect(http.StatusFound, "/")
 		return
 	}
 
 	for _, container := range build.Containers {
-		lib.StartBuild(repo.Url, build.ID, container)
+		go lib.StartBuild(repo.Url, build.ID, container)
 	}
 
 	c.Redirect(http.StatusFound, fmt.Sprintf("/build/%d", build.ID))

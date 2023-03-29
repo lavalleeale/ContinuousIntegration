@@ -2,6 +2,10 @@
 @tailwind components;
 @tailwind utilities;
 
+pre {
+  font-family: monospace;
+}
+
 p,
 h1,
 h2,

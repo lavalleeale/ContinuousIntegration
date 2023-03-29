@@ -36,8 +36,6 @@ func HandleBuildWs(c *gin.Context) {
 	username, err := lib.VerifyJwtString(c.Query("token"))
 	db.Db.Find(context.TODO(), &user, rel.Eq("username", username))
 
-	log.Println(username)
-
 	if err != nil {
 		socket.WriteControl(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseAbnormalClosure, ""), time.Now().Add(time.Second))
 		return
