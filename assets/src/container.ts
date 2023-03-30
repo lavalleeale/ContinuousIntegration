@@ -29,8 +29,7 @@ const log = document.getElementById("log")!;
       log.innerHTML += convert.toHtml(data.log);
       window.scrollTo(0, document.body.scrollHeight);
     } else {
-      code.innerText = code.innerText.replace("Running", data.code);
-      ws.close();
+      code.innerText = code.innerText = `Exit Code: ${data.code}`;
     }
   };
 })();

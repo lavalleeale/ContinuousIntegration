@@ -74,7 +74,7 @@ func StartBuild(repoUrl string, buildID int, cont db.Container) {
 		ctx, close := context.WithTimeout(context.TODO(), time.Minute)
 
 		msgs, errs := Cli.Events(ctx, types.EventsOptions{
-			Filters: filters.NewArgs(filters.Arg("container", serviceContainerResponse.ID)),
+			Filters: filters.NewArgs(filters.Arg("container", serviceContainerResponse.ID), filters.Arg("event", "health_status")),
 		})
 
 	outer:

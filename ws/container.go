@@ -3,6 +3,7 @@ package ws
 import (
 	"context"
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -54,24 +55,76 @@ func HandleContainerWs(c *gin.Context) {
 		return
 	}
 
-	go AttachContainer(socket, c.Param("buildId"), c.Param("containerId"))
-}
-
-func AttachContainer(c *websocket.Conn, BuildID string, ContainerID string) {
-	filters := filters.NewArgs(filters.KeyValuePair{Key: "label", Value: fmt.Sprintf("buildId=%s", BuildID)}, filters.KeyValuePair{Key: "label", Value: fmt.Sprintf("containerId=%s", ContainerID)})
-	containers, err := lib.Cli.ContainerList(context.TODO(), types.ContainerListOptions{All: true, Size: true, Filters: filters})
-
-	if err != nil || len(containers) == 0 {
-		log.Println(err)
-		c.WriteJSON(gin.H{"error": "build not found"})
+	if len(container.Log) != 0 {
+		socket.WriteJSON(gin.H{"type": "log", "log": container.Log})
 		return
 	}
 
-	response, err := lib.Cli.ContainerAttach(context.TODO(), containers[0].ID, types.ContainerAttachOptions{Stream: true, Stdout: true, Logs: true, Stderr: true})
+	go AttachContainer(socket, c.Param("buildId"), c.Param("containerId"))
+}
+
+func AttachContainer(socket *websocket.Conn, BuildID string, ContainerID string) {
+	filter := filters.NewArgs(
+		filters.KeyValuePair{
+			Key: "label",
+			Value: fmt.Sprintf("buildId=%s",
+				BuildID,
+			),
+		},
+		filters.KeyValuePair{
+			Key:   "label",
+			Value: fmt.Sprintf("containerId=%s", ContainerID),
+		},
+	)
+	containers, err := lib.Cli.ContainerList(
+		context.TODO(),
+		types.ContainerListOptions{
+			All:     true,
+			Size:    true,
+			Filters: filter,
+		},
+	)
+
+	var containerId string
 
 	if err != nil {
 		log.Println(err)
-		c.WriteJSON(gin.H{"error": "attach failed"})
+		socket.WriteJSON(gin.H{"error": "build not found"})
+		return
+	} else if len(containers) == 0 {
+		socket.WriteJSON(gin.H{"type": "log", "log": "Waiting for container to start\n"})
+		socket.WriteJSON(gin.H{"type": "code", "code": "Waiting"})
+		ctx, close := context.WithTimeout(context.TODO(), time.Second*90)
+
+		filter.Add("event", "start")
+		msgs, errs := lib.Cli.Events(ctx, types.EventsOptions{Filters: filter})
+
+	outer:
+		for {
+			select {
+			case err := <-errs:
+				log.Println(err)
+				close()
+				if errors.Is(err, context.DeadlineExceeded) {
+					socket.WriteJSON(gin.H{"type": "log", "log": "Container failed to start in time, please refresh"})
+					socket.WriteControl(websocket.CloseMessage, []byte{}, time.Now().Add(time.Second))
+				}
+				return
+			case msg := <-msgs:
+				containerId = msg.Actor.ID
+				close()
+				break outer
+			}
+		}
+	} else {
+		containerId = containers[0].ID
+	}
+
+	response, err := lib.Cli.ContainerAttach(context.TODO(), containerId, types.ContainerAttachOptions{Stream: true, Stdout: true, Logs: true, Stderr: true})
+
+	if err != nil {
+		log.Println(err)
+		socket.WriteJSON(gin.H{"error": "attach failed"})
 		return
 	}
 
@@ -92,18 +145,18 @@ func AttachContainer(c *websocket.Conn, BuildID string, ContainerID string) {
 		}
 		p = make([]byte, length)
 		n, _ := response.Reader.Read(p)
-		c.WriteJSON(gin.H{"type": "log", "log": string(p[:n])})
+		socket.WriteJSON(gin.H{"type": "log", "log": string(p[:n])})
 	}
 
-	statusCh, errCh := lib.Cli.ContainerWait(context.TODO(), containers[0].ID, container.WaitConditionNextExit)
+	statusCh, errCh := lib.Cli.ContainerWait(context.TODO(), containerId, container.WaitConditionNextExit)
 	select {
 	case err := <-errCh:
 		if err != nil {
 			panic(err)
 		}
 	case comp := <-statusCh:
-		c.WriteJSON(gin.H{"type": "code", "code": comp.StatusCode})
+		socket.WriteJSON(gin.H{"type": "code", "code": comp.StatusCode})
 	}
 
-	c.WriteControl(websocket.CloseMessage, []byte{}, time.Now().Add(time.Second))
+	socket.WriteControl(websocket.CloseMessage, []byte{}, time.Now().Add(time.Second))
 }
