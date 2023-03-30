@@ -1,15 +1,14 @@
 package handlers
 
 import (
-	"context"
 	"fmt"
 	"log"
 	"net/http"
+	"strconv"
 	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/gin-gonic/gin/binding"
-	"github.com/go-rel/rel"
 	"github.com/lavalleeale/ContinuousIntegration/db"
 	"github.com/lavalleeale/ContinuousIntegration/lib"
 )
@@ -36,9 +35,15 @@ func StartBuild(c *gin.Context) {
 
 	binding.JSON.BindBody([]byte(data.Command), &containers)
 
-	var repo db.Repo
+	repoId, err := strconv.Atoi(c.Param("repoId"))
 
-	db.Db.Find(context.TODO(), &repo, rel.Eq("id", c.Param("repoId")))
+	if err != nil {
+		c.Redirect(http.StatusFound, "/")
+	}
+
+	repo := db.Repo{ID: repoId}
+
+	db.Db.First(&repo)
 
 	var user db.User
 
@@ -88,7 +93,7 @@ func StartBuild(c *gin.Context) {
 		build.Containers = append(build.Containers, savedContainer)
 	}
 
-	err := db.Db.Insert(context.TODO(), &build)
+	err = db.Db.Create(&build).Error
 
 	if err != nil {
 		log.Println(err)

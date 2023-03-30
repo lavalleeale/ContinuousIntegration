@@ -1,26 +1,26 @@
 package handlers
 
 import (
+	"errors"
 	"net/http"
+	"strconv"
 
 	"github.com/gin-gonic/gin"
-	"github.com/go-rel/rel"
 	"github.com/lavalleeale/ContinuousIntegration/db"
 	"github.com/lavalleeale/ContinuousIntegration/lib"
+	"gorm.io/gorm"
 )
 
 func IndexPage(c *gin.Context) {
 	var user db.User
 
-	lib.GetUser(c, &user)
-
-	if user.ID == 0 {
+	if !lib.GetUser(c, &user) {
 		c.Redirect(http.StatusFound, "/login")
 		return
 	} else {
-		db.Db.Preload(c, &user, "organization")
-		db.Db.Preload(c, &user, "organization.repos")
-		c.HTML(http.StatusOK, "dash", gin.H{"repos": user.Organization.Repos})
+		organization := db.Organization{ID: user.OrganizationID}
+		db.Db.Preload("Repos").First(&organization)
+		c.HTML(http.StatusOK, "dash", gin.H{"repos": organization.Repos})
 	}
 }
 
@@ -35,15 +35,20 @@ func RepoPage(c *gin.Context) {
 
 	lib.GetUser(c, &user)
 
-	var repo db.Repo
+	repoId, err := strconv.Atoi(c.Param("repoId"))
 
-	db.Db.Find(c, &repo, rel.Eq("id", c.Param("repoId")))
-
-	if repo.OrganizationID == user.OrganizationID {
-		db.Db.Preload(c, &repo, "builds")
-		c.HTML(http.StatusOK, "repo", repo)
-	} else {
+	if err != nil {
 		c.Redirect(http.StatusFound, "/")
+	}
+
+	repo := db.Repo{ID: repoId, OrganizationID: user.OrganizationID}
+
+	tx := db.Db.Preload("Builds").Where(&repo, "id", "OrganizationID").First(&repo)
+
+	if tx.Error != nil && errors.Is(tx.Error, gorm.ErrRecordNotFound) {
+		c.Redirect(http.StatusFound, "/")
+	} else {
+		c.HTML(http.StatusOK, "repo", repo)
 	}
 }
 
@@ -52,17 +57,20 @@ func BuildPage(c *gin.Context) {
 
 	lib.GetUser(c, &user)
 
-	var build db.Build
+	buildId, err := strconv.Atoi(c.Param("buildId"))
 
-	db.Db.Find(c, &build, rel.Eq("id", c.Param("buildId")))
-
-	db.Db.Preload(c, &build, "repo")
-
-	if build.Repo.OrganizationID == user.OrganizationID {
-		db.Db.Preload(c, &build, "containers")
-		c.HTML(http.StatusOK, "build", build)
-	} else {
+	if err != nil {
 		c.Redirect(http.StatusFound, "/")
+	}
+
+	build := db.Build{ID: buildId, Repo: db.Repo{OrganizationID: user.OrganizationID}}
+
+	tx := db.Db.Preload("Repo").Preload("Containers").Where(&build, "id", "repo.organizationID").First(&build)
+
+	if tx.Error != nil && errors.Is(tx.Error, gorm.ErrRecordNotFound) {
+		c.Redirect(http.StatusFound, "/")
+	} else {
+		c.HTML(http.StatusOK, "build", build)
 	}
 }
 
@@ -71,12 +79,15 @@ func ContainerPage(c *gin.Context) {
 
 	lib.GetUser(c, &user)
 
-	var container db.Container
+	containerId, err := strconv.Atoi(c.Param("containerId"))
 
-	db.Db.Find(c, &container, rel.And(rel.Eq("id", c.Param("containerId")), rel.Eq("build_id", c.Param("buildId"))))
+	if err != nil {
+		c.Redirect(http.StatusFound, "/")
+	}
 
-	db.Db.Preload(c, &container, "build")
-	db.Db.Preload(c, &container, "build.repo")
+	container := db.Container{ID: containerId, Build: db.Build{Repo: db.Repo{OrganizationID: user.OrganizationID}}}
+
+	db.Db.Preload("Build.Repo").Where(&container, "id", "Build.Repo.OrganizationID").First(&container)
 
 	if container.Build.Repo.OrganizationID == user.OrganizationID {
 		c.HTML(http.StatusOK, "container", container)

@@ -1,20 +1,18 @@
 package db
 
 type User struct {
-	ID int
-
 	Password string
-	Username string
+	Username string `gorm:"primaryKey"`
 
-	Organization   Organization `ref:"organization_id" fk:"id" autosave:"true"`
+	Organization   Organization
 	OrganizationID int
 }
 
 type Organization struct {
 	ID int
 
-	Repos []Repo `ref:"id" fk:"organization_id"`
-	Users []User `ref:"id" fk:"organization_id" autosave:"true"`
+	Repos []Repo
+	Users []User
 }
 
 type Repo struct {
@@ -22,19 +20,19 @@ type Repo struct {
 
 	Url string
 
-	Organization   Organization `ref:"organization_id" fk:"id"`
+	Organization   Organization
 	OrganizationID int
 
-	Builds []Build `ref:"id" fk:"repo_id"`
+	Builds []Build
 }
 
 type Build struct {
 	ID int
 
-	Repo   Repo `ref:"repo_id" fk:"id"`
+	Repo   Repo
 	RepoID int
 
-	Containers []Container `ref:"id" fk:"build_id" autosave:"true"`
+	Containers []Container
 }
 
 type Container struct {
@@ -42,15 +40,15 @@ type Container struct {
 
 	Name               string
 	Code               *int
-	Command            string
+	Command            string `gorm:"size:8192"`
 	Image              string
-	Environment        *string
-	ServiceCommand     *string
+	Environment        *string `gorm:"size:512"`
+	ServiceCommand     *string `gorm:"size:512"`
 	ServiceImage       *string
-	ServiceHealthcheck *string
-	ServiceEnvironment *string
-	Log                string
+	ServiceHealthcheck *string `gorm:"size:512"`
+	ServiceEnvironment *string `gorm:"size:512"`
+	Log                string  `gorm:"size:25000"`
 
 	BuildID int
-	Build   Build `ref:"build_id" fk:"id"`
+	Build   Build
 }

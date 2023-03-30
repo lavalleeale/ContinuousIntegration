@@ -1,14 +1,12 @@
 package lib
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"os"
 
 	"github.com/dgrijalva/jwt-go"
 	"github.com/gin-gonic/gin"
-	"github.com/go-rel/rel"
 	"github.com/lavalleeale/ContinuousIntegration/db"
 )
 
@@ -17,7 +15,8 @@ func GetUser(c *gin.Context, user *db.User) bool {
 	if !valid {
 		return false
 	}
-	db.Db.Find(context.TODO(), user, rel.Eq("username", name))
+	user.Username = name
+	db.Db.First(&user)
 	return true
 }
 

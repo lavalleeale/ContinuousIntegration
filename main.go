@@ -39,8 +39,6 @@ func main() {
 		log.Fatal("Failed to Open DB")
 	}
 
-	defer db.Close()
-
 	lib.StartClient()
 
 	serverRoot, err := fs.Sub(assetsFS, "assets/output")

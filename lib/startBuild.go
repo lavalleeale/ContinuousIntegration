@@ -16,7 +16,6 @@ import (
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/api/types/strslice"
-	"github.com/go-rel/rel"
 	"github.com/lavalleeale/ContinuousIntegration/db"
 )
 
@@ -84,7 +83,8 @@ func StartBuild(repoUrl string, buildID int, cont db.Container) {
 				log.Println(err)
 				close()
 				if errors.Is(err, context.DeadlineExceeded) {
-					db.Db.Update(context.TODO(), &cont, rel.Set("log", "Service container failed to be healthy"), rel.Set("code", 255))
+					code := 255
+					db.Db.Model(&cont).Updates(db.Container{Log: "Service container failed to be healthy", Code: &code})
 					return
 				}
 			case msg := <-msgs:
@@ -172,9 +172,9 @@ func StartBuild(repoUrl string, buildID int, cont db.Container) {
 		}
 
 		if len(logString) > 25000 {
-			db.Db.Update(context.TODO(), &cont, rel.Set("log", logString[0:24950]+"\nTruncated due to length over 25k chars"), rel.Set("code", t.State.ExitCode))
+			db.Db.Model(&cont).Updates(db.Container{Log: logString[0:24950] + "\nTruncated due to length over 25k chars", Code: &t.State.ExitCode})
 		} else {
-			db.Db.Update(context.TODO(), &cont, rel.Set("log", logString), rel.Set("code", t.State.ExitCode))
+			db.Db.Model(&cont).Updates(db.Container{Log: logString, Code: &t.State.ExitCode})
 		}
 		Cli.ContainerRemove(context.TODO(), mainContainerResponse.ID, types.ContainerRemoveOptions{Force: true})
 		if cont.ServiceImage != nil {

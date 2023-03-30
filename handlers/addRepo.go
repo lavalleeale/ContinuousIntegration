@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"context"
 	"fmt"
 	"net/http"
 
@@ -23,7 +22,7 @@ func AddRepo(c *gin.Context) {
 
 	repo := db.Repo{Url: data.Url, OrganizationID: user.OrganizationID}
 
-	err := db.Db.Insert(context.TODO(), &repo)
+	err := db.Db.Create(&repo)
 
 	if err != nil {
 		c.Redirect(http.StatusFound, "/")

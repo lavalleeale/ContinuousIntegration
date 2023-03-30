@@ -13,7 +13,6 @@ import (
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/gin-gonic/gin"
-	"github.com/go-rel/rel"
 	"github.com/gorilla/websocket"
 	"github.com/lavalleeale/ContinuousIntegration/db"
 	"github.com/lavalleeale/ContinuousIntegration/lib"
@@ -25,7 +24,6 @@ var upgrader = websocket.Upgrader{
 
 func HandleBuildWs(c *gin.Context) {
 	var wg sync.WaitGroup
-	var user db.User
 
 	socket, err := upgrader.Upgrade(c.Writer, c.Request, nil)
 	if err != nil {
@@ -41,24 +39,28 @@ func HandleBuildWs(c *gin.Context) {
 	}
 
 	username, err := lib.VerifyJwtString(cookie.Value)
+	if err != nil {
+		socket.WriteControl(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseAbnormalClosure, ""), time.Now().Add(time.Second))
+		return
+	}
+	user := db.User{Username: username}
 
-	db.Db.Find(context.TODO(), &user, rel.Eq("username", username))
+	err = db.Db.First(&user).Error
 
 	if err != nil {
 		socket.WriteControl(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseAbnormalClosure, ""), time.Now().Add(time.Second))
 		return
 	}
 
-	numId, err := strconv.ParseInt(c.Param("buildId"), 10, 64)
+	numId, err := strconv.Atoi(c.Param("buildId"))
 
 	if err != nil {
 		socket.WriteControl(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseAbnormalClosure, ""), time.Now().Add(time.Second))
 		return
 	}
 
-	var build db.Build
-	err = db.Db.Find(context.TODO(), &build, rel.Eq("id", numId))
-	db.Db.Preload(context.TODO(), &build, "repo")
+	build := db.Build{ID: numId, Repo: db.Repo{OrganizationID: user.OrganizationID}}
+	err = db.Db.Preload("Repo").Where(&build, "id", "Repo.OrganizationID").First(&build).Error
 
 	if err != nil || build.Repo.OrganizationID != user.OrganizationID {
 		socket.WriteControl(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseAbnormalClosure, ""), time.Now().Add(time.Second))

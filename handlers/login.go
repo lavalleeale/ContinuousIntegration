@@ -1,20 +1,19 @@
 package handlers
 
 import (
-	"context"
+	"errors"
 	"log"
 	"net/http"
 	"os"
 
 	"github.com/dgrijalva/jwt-go"
 	"github.com/gin-gonic/gin"
-	"github.com/go-rel/rel"
 	"github.com/lavalleeale/ContinuousIntegration/db"
 	"golang.org/x/crypto/bcrypt"
+	"gorm.io/gorm"
 )
 
 func Login(c *gin.Context) {
-	ctx := context.TODO()
 	var dat struct {
 		Username string `form:"username"`
 		Password string `form:"password"`
@@ -26,17 +25,19 @@ func Login(c *gin.Context) {
 		return
 	}
 
-	var user db.User
-	db.Db.Find(ctx, &user, rel.Eq("username", dat.Username))
+	var user = db.User{Username: dat.Username}
+	tx := db.Db.First(&user)
 
-	if user.ID == 0 {
+	if tx.Error != nil && errors.Is(tx.Error, gorm.ErrRecordNotFound) {
 		bytes, err := bcrypt.GenerateFromPassword([]byte(dat.Password), 10)
 		if err != nil {
 			log.Print(err)
 			return
 		}
 		user = db.User{Username: dat.Username, Password: string(bytes)}
-		db.Db.Insert(ctx, &db.Organization{Users: []db.User{user}})
+		err = db.Db.Create(&db.Organization{Users: []db.User{user}}).Error
+		log.Println(err)
+		return
 	} else {
 		err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(dat.Password))
 		if err != nil {
@@ -46,9 +47,6 @@ func Login(c *gin.Context) {
 			return
 		}
 	}
-
-	db.Db.Preload(context.TODO(), &user, "organization")
-	db.Db.Preload(context.TODO(), &user, "organization.repos")
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
 		"username": user.Username,

@@ -15,7 +15,6 @@ import (
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/gin-gonic/gin"
-	"github.com/go-rel/rel"
 	"github.com/gorilla/websocket"
 	"github.com/lavalleeale/ContinuousIntegration/db"
 	"github.com/lavalleeale/ContinuousIntegration/lib"
@@ -28,8 +27,6 @@ func HandleContainerWs(c *gin.Context) {
 		return
 	}
 
-	var user db.User
-
 	cookie, err := c.Request.Cookie("token")
 
 	if err != nil {
@@ -39,24 +36,29 @@ func HandleContainerWs(c *gin.Context) {
 
 	username, err := lib.VerifyJwtString(cookie.Value)
 
-	db.Db.Find(context.TODO(), &user, rel.Eq("username", username))
+	if err != nil {
+		socket.WriteControl(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseAbnormalClosure, ""), time.Now().Add(time.Second))
+		return
+	}
+
+	user := db.User{Username: username}
+
+	err = db.Db.First(&user).Error
 
 	if err != nil {
 		socket.WriteControl(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseAbnormalClosure, ""), time.Now().Add(time.Second))
 		return
 	}
 
-	numId, err := strconv.ParseInt(c.Param("buildId"), 10, 64)
+	containerId, err := strconv.Atoi(c.Param("containerId"))
 
 	if err != nil {
 		socket.WriteControl(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseAbnormalClosure, ""), time.Now().Add(time.Second))
 		return
 	}
 
-	var container db.Container
-	err = db.Db.Find(context.TODO(), &container, rel.And(rel.Eq("build_id", numId), rel.Eq("id", c.Param("containerId"))))
-	db.Db.Preload(context.TODO(), &container, "build")
-	db.Db.Preload(context.TODO(), &container, "build.repo")
+	container := db.Container{ID: containerId}
+	err = db.Db.Preload("Build.Repo").First(&container).Error
 
 	if err != nil || container.Build.Repo.OrganizationID != user.OrganizationID {
 		socket.WriteControl(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseAbnormalClosure, ""), time.Now().Add(time.Second))
@@ -145,6 +147,7 @@ func AttachContainer(socket *websocket.Conn, BuildID string, ContainerID string)
 		var length uint32
 		binary.Read(response.Reader, binary.BigEndian, &length)
 		if err != nil {
+			log.Println(err)
 			if err == io.EOF {
 				break
 			}
@@ -156,13 +159,18 @@ func AttachContainer(socket *websocket.Conn, BuildID string, ContainerID string)
 		socket.WriteJSON(gin.H{"type": "log", "log": string(p[:n])})
 	}
 
+	log.Println(0)
 	statusCh, errCh := lib.Cli.ContainerWait(context.TODO(), containerId, container.WaitConditionNextExit)
+	log.Println(1)
 	select {
 	case err := <-errCh:
+		log.Println(2)
 		if err != nil {
+			log.Println(3)
 			panic(err)
 		}
 	case comp := <-statusCh:
+		log.Println(4)
 		socket.WriteJSON(gin.H{"type": "code", "code": comp.StatusCode})
 	}
 
