@@ -6,7 +6,7 @@
   const ws = new WebSocket(
     `ws://localhost:8080/build/${window.location.href.substring(
       window.location.href.lastIndexOf("/") + 1
-    )}/containerStatus?token=${document.cookie.split("=")[1]}`
+    )}/containerStatus`
   );
 
   ws.onmessage = (event) => {

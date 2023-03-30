@@ -18,9 +18,7 @@ const log = document.getElementById("log")!;
   const ws = new WebSocket(
     `ws://localhost:8080/build/${
       window.location.href.split("/")[4]
-    }/container/${window.location.href.split("/")[6]}/log?token=${
-      document.cookie.split("=")[1]
-    }`
+    }/container/${window.location.href.split("/")[6]}/log`
   );
 
   ws.onmessage = (event) => {

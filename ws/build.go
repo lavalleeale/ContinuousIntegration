@@ -33,7 +33,15 @@ func HandleBuildWs(c *gin.Context) {
 		return
 	}
 
-	username, err := lib.VerifyJwtString(c.Query("token"))
+	cookie, err := c.Request.Cookie("token")
+
+	if err != nil {
+		socket.WriteControl(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseAbnormalClosure, ""), time.Now().Add(time.Second))
+		return
+	}
+
+	username, err := lib.VerifyJwtString(cookie.Value)
+
 	db.Db.Find(context.TODO(), &user, rel.Eq("username", username))
 
 	if err != nil {
