@@ -85,7 +85,7 @@ func ContainerPage(c *gin.Context) {
 		c.Redirect(http.StatusFound, "/")
 	}
 
-	container := db.Container{ID: containerId, Build: db.Build{Repo: db.Repo{OrganizationID: user.OrganizationID}}}
+	container := db.Container{Id: containerId, Build: db.Build{Repo: db.Repo{OrganizationID: user.OrganizationID}}}
 
 	db.Db.Preload("Build.Repo").Where(&container, "id", "Build.Repo.OrganizationID").First(&container)
 

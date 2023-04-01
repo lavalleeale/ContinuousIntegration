@@ -1,5 +1,7 @@
 package db
 
+import "time"
+
 type User struct {
 	Password string
 	Username string `gorm:"primaryKey"`
@@ -29,14 +31,15 @@ type Repo struct {
 type Build struct {
 	ID int
 
-	Repo   Repo
-	RepoID int
+	CreatedAt time.Time
+	Repo      Repo
+	RepoID    int
 
 	Containers []Container
 }
 
 type Container struct {
-	ID int
+	Id int `gorm:"primaryKey"`
 
 	Name               string
 	Code               *int
@@ -49,6 +52,22 @@ type Container struct {
 	ServiceEnvironment *string `gorm:"size:512"`
 	Log                string  `gorm:"size:25000"`
 
+	EdgesToward []ContainerGraphEdge `gorm:"foreignKey:ToID"`
+	EdgesFrom   []ContainerGraphEdge `gorm:"foreignKey:FromID"`
+
 	BuildID int
 	Build   Build
+}
+
+func (v Container) ID() string {
+	return v.Name
+}
+
+type ContainerGraphEdge struct {
+	ID uint
+
+	ToID   uint
+	FromID uint
+	From   Container `gorm:"foreignKey:FromID"`
+	To     Container `gorm:"foreignKey:ToID"`
 }

@@ -9,6 +9,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/gin-gonic/gin/binding"
+	"github.com/heimdalr/dag"
 	"github.com/lavalleeale/ContinuousIntegration/db"
 	"github.com/lavalleeale/ContinuousIntegration/lib"
 )
@@ -23,6 +24,7 @@ func StartBuild(c *gin.Context) {
 		Steps       []string             `json:"steps"`
 		Image       string               `json:"image"`
 		Environment *[]map[string]string `json:"environment,omitempty"`
+		Needs       *[]string            `json:"needs,omitempty"`
 		Service     *struct {
 			Steps       *[]string            `json:"steps,omitempty"`
 			Environment *[]map[string]string `json:"environment,omitempty"`
@@ -54,9 +56,11 @@ func StartBuild(c *gin.Context) {
 		return
 	}
 
-	var build = db.Build{RepoID: repo.ID, Containers: []db.Container{}}
+	var build = db.Build{RepoID: repo.ID, Containers: make([]db.Container, len(containers))}
 
-	for _, container := range containers {
+	d := dag.NewDAG()
+
+	for index, container := range containers {
 		savedContainer := db.Container{
 			Name:    container.ID,
 			Command: strings.Join(container.Steps, " && "),
@@ -90,7 +94,20 @@ func StartBuild(c *gin.Context) {
 				savedContainer.ServiceEnvironment = &environmentString
 			}
 		}
-		build.Containers = append(build.Containers, savedContainer)
+		build.Containers[index] = savedContainer
+		d.AddVertex(&build.Containers[index])
+	}
+
+	for _, container := range containers {
+		if container.Needs != nil {
+			for _, need := range *container.Needs {
+				err = d.AddEdge(need, container.ID)
+				if err != nil {
+					//TODO: deal with
+					panic(err)
+				}
+			}
+		}
 	}
 
 	err = db.Db.Create(&build).Error
@@ -101,9 +118,36 @@ func StartBuild(c *gin.Context) {
 		return
 	}
 
-	for _, container := range build.Containers {
-		go lib.StartBuild(repo.Url, build.ID, container)
+	edges := make([]db.ContainerGraphEdge, 0)
+	for _, node := range d.GetRoots() {
+		treeWalk(d, *node.(*db.Container), &edges)
+	}
+
+	tx := db.Db.Create(&edges)
+	if tx.Error != nil {
+		panic(tx.Error)
+	}
+
+	for _, container := range d.GetRoots() {
+		go lib.StartBuild(repo.Url, build.ID, *container.(*db.Container))
 	}
 
 	c.Redirect(http.StatusFound, fmt.Sprintf("/build/%d", build.ID))
+}
+
+func treeWalk(d *dag.DAG, startNode db.Container, a *[]db.ContainerGraphEdge) {
+	children, err := d.GetChildren(startNode.Name)
+	if err != nil {
+		panic(err)
+	}
+	for _, childNode := range children {
+		*a = append(
+			*a,
+			db.ContainerGraphEdge{
+				FromID: uint(startNode.Id),
+				ToID:   uint(childNode.(*db.Container).Id),
+			},
+		)
+		treeWalk(d, *childNode.(*db.Container), a)
+	}
 }

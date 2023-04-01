@@ -57,7 +57,7 @@ func HandleContainerWs(c *gin.Context) {
 		return
 	}
 
-	container := db.Container{ID: containerId}
+	container := db.Container{Id: containerId}
 	err = db.Db.Preload("Build.Repo").First(&container).Error
 
 	if err != nil || container.Build.Repo.OrganizationID != user.OrganizationID {

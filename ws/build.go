@@ -2,15 +2,14 @@ package ws
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"net/http"
 	"strconv"
-	"sync"
 	"time"
 
 	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
@@ -23,8 +22,6 @@ var upgrader = websocket.Upgrader{
 }
 
 func HandleBuildWs(c *gin.Context) {
-	var wg sync.WaitGroup
-
 	socket, err := upgrader.Upgrade(c.Writer, c.Request, nil)
 	if err != nil {
 		log.Print("upgrade:", err)
@@ -60,40 +57,70 @@ func HandleBuildWs(c *gin.Context) {
 	}
 
 	build := db.Build{ID: numId, Repo: db.Repo{OrganizationID: user.OrganizationID}}
-	err = db.Db.Preload("Repo").Where(&build, "id", "Repo.OrganizationID").First(&build).Error
+	err = db.Db.Preload("Containers").Preload("Repo").Where(&build, "id", "Repo.OrganizationID").First(&build).Error
 
 	if err != nil || build.Repo.OrganizationID != user.OrganizationID {
 		socket.WriteControl(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseAbnormalClosure, ""), time.Now().Add(time.Second))
 		return
 	}
 
-	filters := filters.NewArgs(filters.KeyValuePair{Key: "label", Value: fmt.Sprintf("buildId=%s", c.Param("buildId"))})
-	containers, err := lib.Cli.ContainerList(context.TODO(), types.ContainerListOptions{All: true, Size: true, Filters: filters})
+	left := 0
 
-	if err != nil || len(containers) == 0 {
-		socket.WriteJSON(gin.H{"error": "build finished"})
-		socket.WriteControl(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""), time.Now().Add(time.Second))
-		return
-	}
-
-	for _, container := range containers {
-		wg.Add(1)
-		go AttachContainers(socket, container.ID, container.Labels["containerId"], &wg)
-	}
-
-	wg.Wait()
-	socket.WriteControl(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""), time.Now().Add(time.Second))
-}
-
-func AttachContainers(c *websocket.Conn, containerId string, containerLabel string, wg *sync.WaitGroup) {
-	defer wg.Done()
-	statusCh, errCh := lib.Cli.ContainerWait(context.TODO(), containerId, container.WaitConditionNextExit)
-	select {
-	case err := <-errCh:
-		if err != nil {
-			panic(err)
+	for index, cont := range build.Containers {
+		if cont.Code == nil {
+			left++
+		} else if left == 0 && index == len(build.Containers)-1 {
+			socket.WriteJSON(gin.H{"error": "build finished"})
+			socket.WriteControl(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""), time.Now().Add(time.Second))
+			return
 		}
-	case comp := <-statusCh:
-		c.WriteJSON(gin.H{"id": containerLabel, "code": comp.StatusCode})
 	}
+
+	filters := filters.NewArgs(
+		filters.KeyValuePair{
+			Key: "label",
+			Value: fmt.Sprintf(
+				"buildId=%s",
+				c.Param("buildId"),
+			),
+		},
+		filters.KeyValuePair{
+			Key:   "event",
+			Value: "die",
+		},
+		filters.KeyValuePair{
+			Key:   "event",
+			Value: "create",
+		},
+	)
+	ctx, close := context.WithTimeout(context.TODO(), time.Minute*30)
+
+	msgs, errs := lib.Cli.Events(ctx, types.EventsOptions{
+		Filters: filters,
+	})
+
+outer:
+	for {
+		select {
+		case err := <-errs:
+			log.Println(err)
+			close()
+			if errors.Is(err, context.DeadlineExceeded) {
+				socket.WriteControl(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""), time.Now().Add(time.Second))
+				return
+			}
+		case msg := <-msgs:
+			if msg.Action == "die" {
+				socket.WriteJSON(gin.H{"type": "die", "id": msg.Actor.Attributes["containerId"], "code": msg.Actor.Attributes["exitCode"]})
+				left--
+				if left == 0 {
+					close()
+					break outer
+				}
+			} else {
+				socket.WriteJSON(gin.H{"type": "create", "id": msg.Actor.Attributes["containerId"]})
+			}
+		}
+	}
+	socket.WriteControl(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""), time.Now().Add(time.Second))
 }

@@ -6,33 +6,40 @@
   </h3>
   <h4 class="text-xl">Containers:</h4>
   {{ range .Containers }}
-  <button
-    onclick="window.location.href = '/build/{{ .BuildID }}/container/{{ .ID }}'"
-    class="text-white paper min-w-[10%]"
+  <a
+    onclick="window.location.href = '/build/{{ .BuildID }}/container/{{ .Id }}'"
+    class="text-white paper min-w-[10%] inline-block"
   >
-    {{ .Name }} {{ if not .Code }}
+    {{ .Name }} {{ $length := len .Log }} {{ if eq $length 0 }}
     <div
-      class="inline bg-yellow-500 rounded-2xl float-right h-6 w-6"
-      id="{{ .ID }}"
+      class="inline bg-gray-500 rounded-2xl float-right h-6 w-6 text-center"
+      id="{{ .Id }}"
+    >
+      ?
+    </div>
+    {{ else if not .Code }}
+    <div
+      class="inline bg-yellow-500 rounded-2xl float-right h-6 w-6 text-center"
+      id="{{ .Id }}"
     >
       ?
     </div>
     {{ else if eq (Deref .Code) 0 }}
     <div
-      class="inline bg-green-500 rounded-2xl float-right h-6 w-6"
-      id="{{ .ID }}"
+      class="inline bg-green-500 rounded-2xl float-right h-6 w-6 text-center"
+      id="{{ .Id }}"
     >
       ✓
     </div>
     {{ else }}
     <div
-      class="inline bg-red-500 rounded-2xl float-right h-6 w-6"
-      id="{{ .ID }}"
+      class="inline bg-red-500 rounded-2xl float-right h-6 w-6 text-center"
+      id="{{ .Id }}"
     >
       X
     </div>
     {{ end }}
-  </button>
+  </a>
   {{ end }}
 </div>
 {{ template "Footer" }} {{end}}

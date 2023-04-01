@@ -1,16 +1,25 @@
 [
   {
-    "id": "test",
+    "id": "first",
     "image": "golang",
-    "steps": ["ls"],
-    "service": {
-      "image": "postgres",
-      "healthcheck": "pg_isready",
-      "environment": [
-        { "POSTGRES_PASSWORD": "development" },
-        { "POSTGRES_USER": "development" },
-        { "POSTGRES_DB": "development" }
-      ]
-    }
+    "steps": ["sleep 10"]
+  },
+  {
+    "id": "second1",
+    "image": "golang",
+    "needs": ["first"],
+    "steps": ["sleep 10"]
+  },
+  {
+    "id": "second2",
+    "image": "golang",
+    "needs": ["first"],
+    "steps": ["sleep 25"]
+  },
+  {
+    "id": "third1",
+    "image": "golang",
+    "needs": ["first", "second1"],
+    "steps": ["sleep 10"]
   }
 ]
