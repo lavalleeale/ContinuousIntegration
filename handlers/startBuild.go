@@ -25,6 +25,8 @@ func StartBuild(c *gin.Context) {
 		Image       string               `json:"image"`
 		Environment *[]map[string]string `json:"environment,omitempty"`
 		Needs       *[]string            `json:"needs,omitempty"`
+		NeededFiles *[]string            `json:"neededFiles,omitempty"`
+		Uploads     *[]string            `json:"uploads,omitempty"`
 		Service     *struct {
 			Steps       *[]string            `json:"steps,omitempty"`
 			Environment *[]map[string]string `json:"environment,omitempty"`
@@ -43,7 +45,7 @@ func StartBuild(c *gin.Context) {
 		c.Redirect(http.StatusFound, "/")
 	}
 
-	repo := db.Repo{ID: repoId}
+	repo := db.Repo{ID: uint(repoId)}
 
 	db.Db.First(&repo)
 
@@ -94,11 +96,18 @@ func StartBuild(c *gin.Context) {
 				savedContainer.ServiceEnvironment = &environmentString
 			}
 		}
+		if container.Uploads != nil {
+			uploadedFiles := make([]db.UploadedFile, len(*container.Uploads))
+			for index, uploadedFile := range *container.Uploads {
+				uploadedFiles[index] = db.UploadedFile{Path: uploadedFile}
+			}
+			savedContainer.UploadedFiles = uploadedFiles
+		}
 		build.Containers[index] = savedContainer
 		d.AddVertex(&build.Containers[index])
 	}
 
-	for _, container := range containers {
+	for index, container := range containers {
 		if container.Needs != nil {
 			for _, need := range *container.Needs {
 				err = d.AddEdge(need, container.ID)
@@ -107,6 +116,30 @@ func StartBuild(c *gin.Context) {
 					panic(err)
 				}
 			}
+			if container.NeededFiles != nil {
+				for _, neededFile := range *container.NeededFiles {
+					ancestors, err := d.GetAncestors(container.ID)
+					if err != nil {
+						panic(err)
+					}
+					found := false
+					for k := range ancestors {
+						split := strings.Split(neededFile, ":")
+						if k == split[0] {
+							build.Containers[index].NeededFiles = append(build.Containers[index].NeededFiles, db.NeededFile{From: k, FromPath: split[1]})
+							found = true
+							break
+						}
+					}
+					if !found {
+						//TODO: deal with
+						panic(found)
+					}
+				}
+			}
+		} else if container.NeededFiles != nil {
+			//TODO: deal with
+			panic(err)
 		}
 	}
 
@@ -123,9 +156,11 @@ func StartBuild(c *gin.Context) {
 		treeWalk(d, *node.(*db.Container), &edges)
 	}
 
-	tx := db.Db.Create(&edges)
-	if tx.Error != nil {
-		panic(tx.Error)
+	if len(edges) != 0 {
+		tx := db.Db.Create(&edges)
+		if tx.Error != nil {
+			panic(tx.Error)
+		}
 	}
 
 	for _, container := range d.GetRoots() {

@@ -1,6 +1,7 @@
 package lib
 
 import (
+	"bytes"
 	"context"
 	"encoding/binary"
 	"errors"
@@ -17,10 +18,10 @@ import (
 	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/api/types/strslice"
 	"github.com/lavalleeale/ContinuousIntegration/db"
+	"golang.org/x/exp/slices"
 )
 
-func StartBuild(repoUrl string, buildID int, cont db.Container) {
-	db.Db.Model(&cont).Updates(db.Container{Log: "Starting...\n"})
+func StartBuild(repoUrl string, buildID uint, cont db.Container) {
 	networkResp, err := Cli.NetworkCreate(context.Background(), fmt.Sprintf("%d", cont.Id), types.NetworkCreate{
 		Driver: "bridge",
 	})
@@ -75,7 +76,6 @@ func StartBuild(repoUrl string, buildID int, cont db.Container) {
 		msgs, errs := Cli.Events(ctx, types.EventsOptions{
 			Filters: filters.NewArgs(filters.Arg("container", serviceContainerResponse.ID), filters.Arg("event", "health_status")),
 		})
-
 	outer:
 		for {
 			select {
@@ -102,7 +102,7 @@ func StartBuild(repoUrl string, buildID int, cont db.Container) {
 	}
 	mainContainerResponse, err := Cli.ContainerCreate(context.TODO(), &container.Config{
 		Image:  cont.Image,
-		Cmd:    []string{"bash", "-c", fmt.Sprintf("GIT_SSL_NO_VERIFY=1 git clone %s repo && cd repo && %s", repoUrl, cont.Command)},
+		Cmd:    []string{"bash", "-c", fmt.Sprintf("GIT_SSL_NO_VERIFY=1 git clone %s /repo && cd /repo && %s", repoUrl, cont.Command)},
 		Env:    mainEnv,
 		Tty:    false,
 		Labels: map[string]string{"buildId": fmt.Sprint(buildID), "containerId": fmt.Sprint(cont.Id)},
@@ -116,6 +116,17 @@ func StartBuild(repoUrl string, buildID int, cont db.Container) {
 
 	if err != nil {
 		panic(err)
+	}
+
+	build := db.Build{ID: buildID}
+
+	db.Db.Preload("Containers.UploadedFiles").First(&build)
+
+	for _, neededFile := range cont.NeededFiles {
+		cont := build.Containers[slices.IndexFunc(build.Containers, func(cont db.Container) bool { return cont.Name == neededFile.From })]
+		// TODO: handle not found
+		uploadedFile := cont.UploadedFiles[slices.IndexFunc(cont.UploadedFiles, func(file db.UploadedFile) bool { return file.Path == neededFile.FromPath })]
+		log.Println(Cli.CopyToContainer(context.TODO(), mainContainerResponse.ID, "/neededFiles", bytes.NewReader(uploadedFile.Bytes), types.CopyToContainerOptions{}))
 	}
 
 	if err := Cli.ContainerStart(context.TODO(), mainContainerResponse.ID, types.ContainerStartOptions{}); err != nil {
@@ -174,6 +185,19 @@ func StartBuild(repoUrl string, buildID int, cont db.Container) {
 	} else {
 		db.Db.Model(&cont).Updates(db.Container{Log: logString, Code: &t.State.ExitCode})
 	}
+	for _, file := range cont.UploadedFiles {
+		reader, _, err := Cli.CopyFromContainer(context.TODO(), mainContainerResponse.ID, file.Path)
+		log.Println(err)
+		if err != nil {
+			break
+		}
+		defer reader.Close()
+		bytes, err := io.ReadAll(reader)
+		if err != nil {
+			break
+		}
+		db.Db.Model(&file).Update("bytes", bytes)
+	}
 	Cli.ContainerRemove(context.TODO(), mainContainerResponse.ID, types.ContainerRemoveOptions{Force: true})
 	if cont.ServiceImage != nil {
 		Cli.ContainerRemove(context.TODO(), serviceContainerResponse.ID, types.ContainerRemoveOptions{Force: true})
@@ -181,7 +205,7 @@ func StartBuild(repoUrl string, buildID int, cont db.Container) {
 	Cli.NetworkRemove(context.TODO(), networkResp.ID)
 
 	var edges []db.ContainerGraphEdge
-	db.Db.Where(db.ContainerGraphEdge{FromID: uint(cont.Id)}, "FromID").Preload("To.EdgesToward.From").Find(&edges)
+	db.Db.Where(db.ContainerGraphEdge{FromID: uint(cont.Id)}, "FromID").Preload("To.EdgesToward.From").Preload("To.NeededFiles").Find(&edges)
 	for _, edge := range edges {
 		for index, from := range edge.To.EdgesToward {
 			if from.From.Code == nil {

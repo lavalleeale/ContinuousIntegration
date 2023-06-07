@@ -57,7 +57,7 @@ func HandleContainerWs(c *gin.Context) {
 		return
 	}
 
-	container := db.Container{Id: containerId}
+	container := db.Container{Id: uint(containerId)}
 	err = db.Db.Preload("Build.Repo").First(&container).Error
 
 	if err != nil || container.Build.Repo.OrganizationID != user.OrganizationID {
@@ -102,7 +102,7 @@ func AttachContainer(socket *websocket.Conn, BuildID string, ContainerID string)
 		socket.WriteJSON(gin.H{"error": "build not found"})
 		return
 	} else if len(containers) == 0 {
-		socket.WriteJSON(gin.H{"type": "log", "log": "Waiting for container to start\n"})
+		socket.WriteJSON(gin.H{"type": "log", "log": "Waiting for container to start...\n"})
 		socket.WriteJSON(gin.H{"type": "code", "code": "Waiting"})
 		ctx, close := context.WithTimeout(context.TODO(), time.Second*90)
 
@@ -140,6 +140,8 @@ func AttachContainer(socket *websocket.Conn, BuildID string, ContainerID string)
 
 	defer response.Close()
 
+	socket.WriteJSON(gin.H{"type": "log", "log": "Container Started!\n"})
+
 	for {
 		p := make([]byte, 1)
 		_, err := response.Reader.Read(p)
@@ -159,18 +161,13 @@ func AttachContainer(socket *websocket.Conn, BuildID string, ContainerID string)
 		socket.WriteJSON(gin.H{"type": "log", "log": string(p[:n])})
 	}
 
-	log.Println(0)
 	statusCh, errCh := lib.Cli.ContainerWait(context.TODO(), containerId, container.WaitConditionNextExit)
-	log.Println(1)
 	select {
 	case err := <-errCh:
-		log.Println(2)
 		if err != nil {
-			log.Println(3)
 			panic(err)
 		}
 	case comp := <-statusCh:
-		log.Println(4)
 		socket.WriteJSON(gin.H{"type": "code", "code": comp.StatusCode})
 	}
 

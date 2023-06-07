@@ -1,45 +1,50 @@
 package db
 
-import "time"
+import (
+	"time"
+
+	"github.com/google/uuid"
+	"gorm.io/gorm"
+)
 
 type User struct {
 	Password string
 	Username string `gorm:"primaryKey"`
 
 	Organization   Organization
-	OrganizationID int
+	OrganizationID uint
 }
 
 type Organization struct {
-	ID int
+	ID uint
 
 	Repos []Repo
 	Users []User
 }
 
 type Repo struct {
-	ID int
+	ID uint
 
 	Url string
 
 	Organization   Organization
-	OrganizationID int
+	OrganizationID uint
 
 	Builds []Build
 }
 
 type Build struct {
-	ID int
+	ID uint
 
 	CreatedAt time.Time
 	Repo      Repo
-	RepoID    int
+	RepoID    uint
 
 	Containers []Container
 }
 
 type Container struct {
-	Id int `gorm:"primaryKey"`
+	Id uint `gorm:"primaryKey"`
 
 	Name               string
 	Code               *int
@@ -52,15 +57,42 @@ type Container struct {
 	ServiceEnvironment *string `gorm:"size:512"`
 	Log                string  `gorm:"size:25000"`
 
+	UploadedFiles []UploadedFile
+
+	NeededFiles []NeededFile
+
 	EdgesToward []ContainerGraphEdge `gorm:"foreignKey:ToID"`
 	EdgesFrom   []ContainerGraphEdge `gorm:"foreignKey:FromID"`
 
-	BuildID int
+	BuildID uint
 	Build   Build
+}
+
+type NeededFile struct {
+	Id          uint `gorm:"primaryKey"`
+	From        string
+	FromPath    string
+	ContainerID uint
+	Container   Container
 }
 
 func (v Container) ID() string {
 	return v.Name
+}
+
+type UploadedFile struct {
+	ID          uuid.UUID `gorm:"type:uuid;primary_key;"`
+	Path        string
+	Container   Container
+	ContainerID uint
+	Bytes       []byte
+}
+
+func (file *UploadedFile) BeforeCreate(tx *gorm.DB) (err error) {
+	if file.ID.Variant() == uuid.Reserved {
+		file.ID = uuid.New()
+	}
+	return
 }
 
 type ContainerGraphEdge struct {

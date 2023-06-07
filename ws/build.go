@@ -56,7 +56,7 @@ func HandleBuildWs(c *gin.Context) {
 		return
 	}
 
-	build := db.Build{ID: numId, Repo: db.Repo{OrganizationID: user.OrganizationID}}
+	build := db.Build{ID: uint(numId), Repo: db.Repo{OrganizationID: user.OrganizationID}}
 	err = db.Db.Preload("Containers").Preload("Repo").Where(&build, "id", "Repo.OrganizationID").First(&build).Error
 
 	if err != nil || build.Repo.OrganizationID != user.OrganizationID {

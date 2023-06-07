@@ -18,5 +18,6 @@
   },
   "dependencies": {
     "ansi-to-html": "git+https://github.com/lavalleeale/ansi-to-html#patch-1"
-  }
+  },
+  "packageManager": "yarn@1.22.19"
 }

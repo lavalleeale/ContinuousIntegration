@@ -1,25 +1,28 @@
 [
   {
-    "id": "first",
-    "image": "golang",
-    "steps": ["sleep 10"]
+    "id": "assets",
+    "image": "base",
+    "steps": [
+      "yarn --immutable",
+      "yarn build"
+    ],
+    "uploads": [
+      "/repo/assets/output"
+    ]
   },
   {
-    "id": "second1",
-    "image": "golang",
-    "needs": ["first"],
-    "steps": ["sleep 10"]
-  },
-  {
-    "id": "second2",
-    "image": "golang",
-    "needs": ["first"],
-    "steps": ["sleep 25"]
-  },
-  {
-    "id": "third1",
-    "image": "golang",
-    "needs": ["first", "second1"],
-    "steps": ["sleep 10"]
+    "id": "go",
+    "image": "base",
+    "steps": [
+      "mv /neededFiles/output assets/output",
+      "go build .",
+      "ls -lah ."
+    ],
+    "neededFiles": [
+      "assets:/repo/assets/output"
+    ],
+    "needs": [
+      "assets"
+    ]
   }
 ]

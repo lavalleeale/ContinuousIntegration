@@ -41,7 +41,7 @@ func RepoPage(c *gin.Context) {
 		c.Redirect(http.StatusFound, "/")
 	}
 
-	repo := db.Repo{ID: repoId, OrganizationID: user.OrganizationID}
+	repo := db.Repo{ID: uint(repoId), OrganizationID: user.OrganizationID}
 
 	tx := db.Db.Preload("Builds").Where(&repo, "id", "OrganizationID").First(&repo)
 
@@ -63,7 +63,7 @@ func BuildPage(c *gin.Context) {
 		c.Redirect(http.StatusFound, "/")
 	}
 
-	build := db.Build{ID: buildId, Repo: db.Repo{OrganizationID: user.OrganizationID}}
+	build := db.Build{ID: uint(buildId), Repo: db.Repo{OrganizationID: user.OrganizationID}}
 
 	tx := db.Db.Preload("Repo").Preload("Containers").Where(&build, "id", "repo.organizationID").First(&build)
 
@@ -85,7 +85,7 @@ func ContainerPage(c *gin.Context) {
 		c.Redirect(http.StatusFound, "/")
 	}
 
-	container := db.Container{Id: containerId, Build: db.Build{Repo: db.Repo{OrganizationID: user.OrganizationID}}}
+	container := db.Container{Id: uint(containerId), Build: db.Build{Repo: db.Repo{OrganizationID: user.OrganizationID}}}
 
 	db.Db.Preload("Build.Repo").Where(&container, "id", "Build.Repo.OrganizationID").First(&container)
 

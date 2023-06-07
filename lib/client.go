@@ -10,7 +10,12 @@ var Cli *client.Client
 
 func StartClient() *client.Client {
 	var err error
-	Cli, err = client.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation(), client.WithHost(os.Getenv("DOCKER_HOST")))
+	host := os.Getenv("DOCKER_HOST")
+	if host == "local" {
+		Cli, err = client.NewClientWithOpts(client.WithAPIVersionNegotiation())
+	} else {
+		Cli, err = client.NewClientWithOpts(client.WithAPIVersionNegotiation(), client.WithHost(host))
+	}
 
 	if err != nil {
 		panic(err)

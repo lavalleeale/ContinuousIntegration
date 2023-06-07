@@ -29,7 +29,6 @@ func Login(c *gin.Context) {
 	tx := db.Db.First(&user)
 
 	log.Println(tx.Error)
-
 	if tx.Error != nil && errors.Is(tx.Error, gorm.ErrRecordNotFound) {
 		bytes, err := bcrypt.GenerateFromPassword([]byte(dat.Password), 10)
 		if err != nil {
@@ -38,8 +37,12 @@ func Login(c *gin.Context) {
 		}
 		user = db.User{Username: dat.Username, Password: string(bytes)}
 		err = db.Db.Create(&db.Organization{Users: []db.User{user}}).Error
-		log.Println(err)
-		return
+		if err != nil {
+			c.HTML(http.StatusInternalServerError, "login", gin.H{
+				"error": "Failed to create user",
+			})
+			return
+		}
 	} else {
 		err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(dat.Password))
 		if err != nil {
