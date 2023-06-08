@@ -110,7 +110,7 @@ func StartBuild(repoUrl string, buildID uint, cont db.Container) {
 		Env:    mainEnv,
 		Tty:    false,
 		Labels: map[string]string{"buildId": fmt.Sprint(buildID), "containerId": fmt.Sprint(cont.Id)},
-	}, &container.HostConfig{Runtime: "sysbox-runc"}, &network.NetworkingConfig{
+	}, &container.HostConfig{Runtime: os.Getenv("RUNTIME")}, &network.NetworkingConfig{
 		EndpointsConfig: map[string]*network.EndpointSettings{
 			networkResp.ID: {
 				Aliases: []string{cont.Name},
@@ -123,10 +123,10 @@ func StartBuild(repoUrl string, buildID uint, cont db.Container) {
 	}
 
 	for _, neededFile := range cont.NeededFiles {
-		cont := build.Containers[slices.IndexFunc(build.Containers, func(cont db.Container) bool { return cont.Name == neededFile.From })]
+		neededCont := build.Containers[slices.IndexFunc(build.Containers, func(cont db.Container) bool { return cont.Name == neededFile.From })]
 		// TODO: handle not found
-		uploadedFile := cont.UploadedFiles[slices.IndexFunc(cont.UploadedFiles, func(file db.UploadedFile) bool { return file.Path == neededFile.FromPath })]
-		err = Cli.CopyToContainer(context.TODO(), mainContainerResponse.ID, "/neededFiles", bytes.NewReader(uploadedFile.Bytes), types.CopyToContainerOptions{})
+		uploadedFile := neededCont.UploadedFiles[slices.IndexFunc(neededCont.UploadedFiles, func(file db.UploadedFile) bool { return file.Path == neededFile.FromPath })]
+		err = Cli.CopyToContainer(context.TODO(), mainContainerResponse.ID, "/neededFiles/", bytes.NewReader(uploadedFile.Bytes), types.CopyToContainerOptions{})
 		if err != nil {
 			log.Println(err)
 		}
@@ -209,7 +209,7 @@ func StartBuild(repoUrl string, buildID uint, cont db.Container) {
 	Cli.NetworkRemove(context.TODO(), networkResp.ID)
 
 	var edges []db.ContainerGraphEdge
-	db.Db.Where(db.ContainerGraphEdge{FromID: uint(cont.Id)}, "FromID").Preload("To.EdgesToward.From").Preload("To.NeededFiles").Find(&edges)
+	db.Db.Where(db.ContainerGraphEdge{FromID: uint(cont.Id)}, "FromID").Preload("To.EdgesToward.From").Preload("To.NeededFiles").Preload("To.UploadedFiles").Find(&edges)
 	for _, edge := range edges {
 		for index, from := range edge.To.EdgesToward {
 			if from.From.Code == nil {
