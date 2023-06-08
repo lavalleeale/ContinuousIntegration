@@ -96,17 +96,21 @@ func StartBuild(repoUrl string, buildID uint, cont db.Container) {
 		}
 	}
 
+	build := db.Build{ID: buildID}
+
+	db.Db.Preload("Containers.UploadedFiles").First(&build)
+
 	var mainEnv = make([]string, 0)
 	if cont.Environment != nil {
 		mainEnv = append(mainEnv, strings.Split(*cont.Environment, ",")...)
 	}
 	mainContainerResponse, err := Cli.ContainerCreate(context.TODO(), &container.Config{
 		Image:  cont.Image,
-		Cmd:    []string{"bash", "-c", fmt.Sprintf("GIT_SSL_NO_VERIFY=1 git clone %s /repo && cd /repo && %s", repoUrl, cont.Command)},
+		Cmd:    []string{"bash", "-c", fmt.Sprintf("GIT_SSL_NO_VERIFY=1 git clone %s %s /repo && cd /repo && %s", repoUrl, build.GitConfig, cont.Command)},
 		Env:    mainEnv,
 		Tty:    false,
 		Labels: map[string]string{"buildId": fmt.Sprint(buildID), "containerId": fmt.Sprint(cont.Id)},
-	}, nil, &network.NetworkingConfig{
+	}, &container.HostConfig{Runtime: "sysbox-runc"}, &network.NetworkingConfig{
 		EndpointsConfig: map[string]*network.EndpointSettings{
 			networkResp.ID: {
 				Aliases: []string{cont.Name},
@@ -117,10 +121,6 @@ func StartBuild(repoUrl string, buildID uint, cont db.Container) {
 	if err != nil {
 		panic(err)
 	}
-
-	build := db.Build{ID: buildID}
-
-	db.Db.Preload("Containers.UploadedFiles").First(&build)
 
 	for _, neededFile := range cont.NeededFiles {
 		cont := build.Containers[slices.IndexFunc(build.Containers, func(cont db.Container) bool { return cont.Name == neededFile.From })]

@@ -18,8 +18,8 @@ type User struct {
 type Organization struct {
 	ID uint
 
-	Repos []Repo
-	Users []User
+	Repos []Repo `gorm:"constraint:OnDelete:CASCADE;"`
+	Users []User `gorm:"constraint:OnDelete:CASCADE;"`
 }
 
 type Repo struct {
@@ -30,17 +30,18 @@ type Repo struct {
 	Organization   Organization
 	OrganizationID uint
 
-	Builds []Build
+	Builds []Build `gorm:"constraint:OnDelete:CASCADE;"`
 }
 
 type Build struct {
-	ID uint
+	ID        uint
+	GitConfig string
 
 	CreatedAt time.Time
 	Repo      Repo
 	RepoID    uint
 
-	Containers []Container
+	Containers []Container `gorm:"constraint:OnDelete:CASCADE;"`
 }
 
 type Container struct {
@@ -57,12 +58,12 @@ type Container struct {
 	ServiceEnvironment *string `gorm:"size:512"`
 	Log                string  `gorm:"size:25000"`
 
-	UploadedFiles []UploadedFile
+	UploadedFiles []UploadedFile `gorm:"constraint:OnDelete:CASCADE;"`
 
-	NeededFiles []NeededFile
+	NeededFiles []NeededFile `gorm:"constraint:OnDelete:CASCADE;"`
 
-	EdgesToward []ContainerGraphEdge `gorm:"foreignKey:ToID"`
-	EdgesFrom   []ContainerGraphEdge `gorm:"foreignKey:FromID"`
+	EdgesToward []ContainerGraphEdge `gorm:"constraint:OnDelete:CASCADE;foreignKey:ToID"`
+	EdgesFrom   []ContainerGraphEdge `gorm:"constraint:OnDelete:CASCADE;foreignKey:FromID"`
 
 	BuildID uint
 	Build   Build

@@ -19,25 +19,28 @@ func StartBuild(c *gin.Context) {
 		Command string `form:"command"`
 	}
 
-	var containers []struct {
-		ID          string               `json:"id"`
-		Steps       []string             `json:"steps"`
-		Image       string               `json:"image"`
-		Environment *[]map[string]string `json:"environment,omitempty"`
-		Needs       *[]string            `json:"needs,omitempty"`
-		NeededFiles *[]string            `json:"neededFiles,omitempty"`
-		Uploads     *[]string            `json:"uploads,omitempty"`
-		Service     *struct {
-			Steps       *[]string            `json:"steps,omitempty"`
-			Environment *[]map[string]string `json:"environment,omitempty"`
+	var buildData struct {
+		GitConfig  *string `json:"gitConfig"`
+		Containers []struct {
+			ID          string               `json:"id"`
+			Steps       []string             `json:"steps"`
 			Image       string               `json:"image"`
-			Healthcheck string               `json:"healthcheck"`
-		} `json:"service,omitempty"`
+			Environment *[]map[string]string `json:"environment,omitempty"`
+			Needs       *[]string            `json:"needs,omitempty"`
+			NeededFiles *[]string            `json:"neededFiles,omitempty"`
+			Uploads     *[]string            `json:"uploads,omitempty"`
+			Service     *struct {
+				Steps       *[]string            `json:"steps,omitempty"`
+				Environment *[]map[string]string `json:"environment,omitempty"`
+				Image       string               `json:"image"`
+				Healthcheck string               `json:"healthcheck"`
+			} `json:"service,omitempty"`
+		} `json:"containers"`
 	}
 
 	c.ShouldBind(&data)
 
-	binding.JSON.BindBody([]byte(data.Command), &containers)
+	binding.JSON.BindBody([]byte(data.Command), &buildData)
 
 	repoId, err := strconv.Atoi(c.Param("repoId"))
 
@@ -58,11 +61,15 @@ func StartBuild(c *gin.Context) {
 		return
 	}
 
-	var build = db.Build{RepoID: repo.ID, Containers: make([]db.Container, len(containers))}
+	var build = db.Build{RepoID: repo.ID, Containers: make([]db.Container, len(buildData.Containers)), GitConfig: ""}
+
+	if buildData.GitConfig != nil {
+		build.GitConfig = *buildData.GitConfig
+	}
 
 	d := dag.NewDAG()
 
-	for index, container := range containers {
+	for index, container := range buildData.Containers {
 		savedContainer := db.Container{
 			Name:    container.ID,
 			Command: strings.Join(container.Steps, " && "),
@@ -107,7 +114,7 @@ func StartBuild(c *gin.Context) {
 		d.AddVertex(&build.Containers[index])
 	}
 
-	for index, container := range containers {
+	for index, container := range buildData.Containers {
 		if container.Needs != nil {
 			for _, need := range *container.Needs {
 				err = d.AddEdge(need, container.ID)

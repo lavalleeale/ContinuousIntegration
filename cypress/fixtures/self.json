@@ -15,14 +15,29 @@
     "image": "base",
     "steps": [
       "mv /neededFiles/output assets/output",
-      "go build .",
-      "ls -lah ."
+      "go build ."
     ],
     "neededFiles": [
       "assets:/repo/assets/output"
     ],
     "needs": [
       "assets"
+    ],
+    "uploads": [
+      "/repo/ContinuousIntegration"
+    ]
+  },
+  {
+    "id": "test",
+    "image": "base",
+    "steps": [
+      "dockerd > /var/log/dockerd.log 2>&1 &"
+    ],
+    "needs": [
+      "go"
+    ],
+    "neededFiles": [
+      "go:/repo/ContinuousIntegration"
     ]
   }
 ]

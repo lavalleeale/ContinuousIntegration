@@ -6,13 +6,23 @@
         <h3 class="text-3xl text-center">Add Build</h3>
         <label>
           Build Command
-          <textarea class="textfield h-3/4" name="command"></textarea>
+          <textarea
+            class="textfield h-3/4"
+            name="command"
+            id="command"
+          ></textarea>
         </label>
-        <button class="btn btn-blue float-right" type="submit">Build</button>
+        <button class="btn btn-blue float-right" type="submit" id="add-build">
+          Build
+        </button>
       </form>
     </div>
   </div>
-  <button class="float-right btn-pill btn-blue" onclick="window.showModal()">
+  <button
+    class="float-right btn-pill btn-blue"
+    onclick="window.showModal()"
+    id="show-add-build"
+  >
     Add Build
   </button>
   <h2 class="text-3xl mb-4">Repo <a href="{{ .Url }}">{{ .Url }}</a></h2>

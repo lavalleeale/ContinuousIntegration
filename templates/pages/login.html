@@ -3,13 +3,22 @@
   <div class="paper w-1/2">
     <h4 class="text-xl text-center">Login</h4>
     <form action="/login" method="post">
-      <label> Username <input class="textfield" name="username" /> </label>
+      <label>
+        Username <input class="textfield" name="username" id="username" />
+      </label>
       <label>
         Password
-        <input class="textfield" type="password" name="password" />
+        <input
+          class="textfield"
+          type="password"
+          name="password"
+          id="password"
+        />
       </label>
       <p class="text-red-600">{{ .error }}</p>
-      <button class="btn btn-blue float-right" type="submit">Login</button>
+      <button class="btn btn-blue float-right" type="submit" id="login">
+        Login
+      </button>
     </form>
   </div>
 </div>
