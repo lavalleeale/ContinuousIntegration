@@ -14,7 +14,7 @@ func StartClient() *client.Client {
 	if host == "local" {
 		Cli, err = client.NewClientWithOpts(client.WithAPIVersionNegotiation())
 	} else {
-		Cli, err = client.NewClientWithOpts(client.WithAPIVersionNegotiation(), client.WithHost(host))
+		Cli, err = client.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())
 	}
 
 	if err != nil {

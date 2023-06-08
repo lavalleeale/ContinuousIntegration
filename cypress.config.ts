@@ -3,6 +3,7 @@ import { spawn } from "node:child_process";
 
 module.exports = defineConfig({
   e2e: {
+    baseUrl: "http://localhost:8080",
     setupNodeEvents(on, config) {
       on("task", {
         "db:seed": async (scenarioName) => {

@@ -76,14 +76,16 @@ func HandleBuildWs(c *gin.Context) {
 		}
 	}
 
-	filters := filters.NewArgs(
-		filters.KeyValuePair{
-			Key: "label",
-			Value: fmt.Sprintf(
-				"buildId=%s",
-				c.Param("buildId"),
-			),
-		},
+	labelPair := filters.KeyValuePair{
+		Key: "label",
+		Value: fmt.Sprintf(
+			"buildId=%s",
+			c.Param("buildId"),
+		),
+	}
+
+	filterPairs := filters.NewArgs(
+		labelPair,
 		filters.KeyValuePair{
 			Key:   "event",
 			Value: "die",
@@ -96,8 +98,16 @@ func HandleBuildWs(c *gin.Context) {
 	ctx, close := context.WithTimeout(context.TODO(), time.Minute*30)
 
 	msgs, errs := lib.Cli.Events(ctx, types.EventsOptions{
-		Filters: filters,
+		Filters: filterPairs,
 	})
+
+	containers, err := lib.Cli.ContainerList(context.TODO(), types.ContainerListOptions{Filters: filters.NewArgs(labelPair)})
+	if err != nil {
+		panic(err)
+	}
+	for _, cont := range containers {
+		socket.WriteJSON(gin.H{"type": "create", "id": cont.Labels["containerId"]})
+	}
 
 outer:
 	for {
