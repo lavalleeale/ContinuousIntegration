@@ -56,7 +56,7 @@ type Container struct {
 	ServiceImage       *string
 	ServiceHealthcheck *string `gorm:"size:512"`
 	ServiceEnvironment *string `gorm:"size:512"`
-	Log                string  `gorm:"size:25000"`
+	Log                string  `gorm:"size:100000"`
 
 	UploadedFiles []UploadedFile `gorm:"constraint:OnDelete:CASCADE;"`
 

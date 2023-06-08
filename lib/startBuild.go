@@ -183,8 +183,8 @@ func StartBuild(repoUrl string, buildID uint, cont db.Container) {
 		panic(err)
 	}
 
-	if len(logString) > 25000 {
-		db.Db.Model(&cont).Updates(db.Container{Log: logString[0:24900] + "\nTruncated due to length over 25k chars", Code: &t.State.ExitCode})
+	if len(logString) > 100000 {
+		db.Db.Model(&cont).Updates(db.Container{Log: logString[0:99900] + "\nTruncated due to length over 100k chars", Code: &t.State.ExitCode})
 	} else {
 		db.Db.Model(&cont).Updates(db.Container{Log: logString, Code: &t.State.ExitCode})
 	}
