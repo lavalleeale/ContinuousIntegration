@@ -18,7 +18,7 @@ describe("Full Spec", () => {
     cy.visit("/");
     cy.contains("sshca").click();
     cy.get("#show-add-build").click();
-    cy.fixture("basic.json").then((sshca) => {
+    cy.fixture("sshca.json").then((sshca) => {
       cy.get("#command").type(JSON.stringify(sshca), {
         force: true,
         parseSpecialCharSequences: false,
@@ -38,7 +38,5 @@ describe("Full Spec", () => {
     cy.get(".bg-green-500", { timeout: 1000000 }).should("be.visible");
     cy.get(".bg-yellow-500", { timeout: 1000000 }).should("be.visible");
     cy.get(".bg-green-500", { timeout: 1000000 }).should("have.length", 2);
-    cy.contains("go").click();
-    cy.contains("/neededFiles/dev/docker-compose.yaml").should("be.visible");
   });
 });

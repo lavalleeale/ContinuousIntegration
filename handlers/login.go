@@ -28,7 +28,6 @@ func Login(c *gin.Context) {
 	var user = db.User{Username: dat.Username}
 	tx := db.Db.First(&user)
 
-	log.Println(tx.Error)
 	if tx.Error != nil && errors.Is(tx.Error, gorm.ErrRecordNotFound) {
 		bytes, err := bcrypt.GenerateFromPassword([]byte(dat.Password), 10)
 		if err != nil {

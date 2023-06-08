@@ -149,7 +149,6 @@ func AttachContainer(socket *websocket.Conn, BuildID string, ContainerID string)
 		var length uint32
 		binary.Read(response.Reader, binary.BigEndian, &length)
 		if err != nil {
-			log.Println(err)
 			if err == io.EOF {
 				break
 			}

@@ -126,7 +126,10 @@ func StartBuild(repoUrl string, buildID uint, cont db.Container) {
 		cont := build.Containers[slices.IndexFunc(build.Containers, func(cont db.Container) bool { return cont.Name == neededFile.From })]
 		// TODO: handle not found
 		uploadedFile := cont.UploadedFiles[slices.IndexFunc(cont.UploadedFiles, func(file db.UploadedFile) bool { return file.Path == neededFile.FromPath })]
-		log.Println(Cli.CopyToContainer(context.TODO(), mainContainerResponse.ID, "/neededFiles", bytes.NewReader(uploadedFile.Bytes), types.CopyToContainerOptions{}))
+		err = Cli.CopyToContainer(context.TODO(), mainContainerResponse.ID, "/neededFiles", bytes.NewReader(uploadedFile.Bytes), types.CopyToContainerOptions{})
+		if err != nil {
+			log.Println(err)
+		}
 	}
 
 	if err := Cli.ContainerStart(context.TODO(), mainContainerResponse.ID, types.ContainerStartOptions{}); err != nil {
@@ -181,15 +184,16 @@ func StartBuild(repoUrl string, buildID uint, cont db.Container) {
 	}
 
 	if len(logString) > 25000 {
-		db.Db.Model(&cont).Updates(db.Container{Log: logString[0:24940] + "\nTruncated due to length over 25k chars", Code: &t.State.ExitCode})
+		db.Db.Model(&cont).Updates(db.Container{Log: logString[0:24900] + "\nTruncated due to length over 25k chars", Code: &t.State.ExitCode})
 	} else {
 		db.Db.Model(&cont).Updates(db.Container{Log: logString, Code: &t.State.ExitCode})
 	}
 	for _, file := range cont.UploadedFiles {
 		reader, _, err := Cli.CopyFromContainer(context.TODO(), mainContainerResponse.ID, file.Path)
-		log.Println(err)
 		if err != nil {
-			break
+			log.Println(err)
+			db.Db.Model(&cont).Update("log", fmt.Sprintf("%s\nFailed to upload file (%s)", cont.Log, file.Path))
+			return
 		}
 		defer reader.Close()
 		bytes, err := io.ReadAll(reader)
