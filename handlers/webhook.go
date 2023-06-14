@@ -52,6 +52,7 @@ func HandleWebhook(c *gin.Context) {
 			var repo db.Repo
 			err = db.Db.First(&repo, "github_repo_id = ?", &event.Repo.ID).Error
 			if err != nil {
+				log.Println(err)
 				return
 			}
 			transport := ghinstallation.NewFromAppsTransport(lib.Itr, *event.Installation.ID)
@@ -77,6 +78,7 @@ func HandleWebhook(c *gin.Context) {
 				var buildData = lib.BuildData{GitConfig: &gitConfig}
 				err = binding.JSON.BindBody(json, &buildData.Containers)
 				if err != nil {
+					log.Println(err)
 					return
 				}
 				for index, v := range buildData.Containers {
@@ -84,6 +86,7 @@ func HandleWebhook(c *gin.Context) {
 				}
 				token, err := transport.Token(context.TODO())
 				if err != nil {
+					log.Println(err)
 					return
 				}
 				build, err := lib.StartBuild(repo, buildData, []string{"x-access-token", token}, func(id uint) {
