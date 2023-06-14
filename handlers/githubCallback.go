@@ -53,10 +53,8 @@ func GithubCallback(c *gin.Context) {
 			db.Db.Model(&user).Update("installation_ids", gorm.Expr("installation_ids || ?", pq.Array([]int64{installId})))
 			c.Redirect(http.StatusFound, "/addRepoGithub")
 		} else {
-			session := c.MustGet("session").(map[string]string)
-			session["installId"] = strconv.FormatInt(installId, 10)
-			c.Redirect(http.StatusUnauthorized, "/login")
+			lib.SetSession(c, "installId", strconv.FormatInt(installId, 10))
+			c.Redirect(http.StatusFound, "/login")
 		}
 	}
-	log.Println(len(user), *user[0].ID, installId)
 }

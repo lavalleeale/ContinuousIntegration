@@ -8,6 +8,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/lavalleeale/ContinuousIntegration/db"
+	"github.com/lavalleeale/ContinuousIntegration/lib"
 	"github.com/lib/pq"
 	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
@@ -37,6 +38,7 @@ func Login(c *gin.Context) {
 			return
 		}
 		user = db.User{Username: dat.Username, Password: string(bytes)}
+		log.Println(ok)
 		if ok {
 			id, err := strconv.ParseInt(installId, 10, 64)
 			if err != nil {
@@ -60,10 +62,17 @@ func Login(c *gin.Context) {
 			})
 			return
 		}
+		if ok {
+			id, err := strconv.ParseInt(installId, 10, 64)
+			if err != nil {
+				// This will never fail since the user cannot alter their own session
+				panic(err)
+			}
+			db.Db.Model(&user).Update("installation_ids", gorm.Expr("installation_ids || ?", pq.Array([]int64{id})))
+		}
 	}
 
-	session["username"] = user.Username
-	c.Set("session", session)
+	lib.SetSession(c, "username", user.Username)
 
 	if ok {
 		c.Redirect(http.StatusFound, "/addRepoGithub")

@@ -2,6 +2,7 @@ package lib
 
 import (
 	"encoding/json"
+	"log"
 	"os"
 
 	"github.com/gin-gonic/gin"
@@ -12,6 +13,7 @@ func Session(c *gin.Context) {
 	cookie, err := c.Request.Cookie("session")
 	if err == nil {
 		userData, err := VerifySession(cookie.Value)
+		log.Println(userData)
 		if err == nil {
 			c.Set("session", userData)
 		} else {
@@ -20,12 +22,11 @@ func Session(c *gin.Context) {
 	} else {
 		c.Set("session", map[string]string{})
 	}
+}
 
-	// before request
-
-	c.Next()
-
-	var sessionData = c.MustGet("session").(map[string]string)
+func SetSession(c *gin.Context, key string, value string) {
+	sessionData := c.MustGet("session").(map[string]string)
+	sessionData[key] = value
 	session, err := json.Marshal(sessionData)
 	if err != nil {
 		// We have created map so marshalling it should never fail

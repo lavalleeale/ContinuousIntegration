@@ -110,11 +110,11 @@ func HandleWebhook(c *gin.Context) {
 				build, err := lib.StartBuild(repo, buildData, []string{"x-access-token", token}, func(id uint, failed bool) {
 					var conclusion string
 					if failed {
-						db.Db.Model(db.Build{ID: id}).Update("status", "succeeded")
-						conclusion = "success"
-					} else {
 						db.Db.Model(db.Build{ID: id}).Update("status", "failed")
 						conclusion = "failure"
+					} else {
+						db.Db.Model(db.Build{ID: id}).Update("status", "succeeded")
+						conclusion = "success"
 					}
 					externalID := strconv.FormatInt(int64(id), 10)
 					var detailsUrl string
