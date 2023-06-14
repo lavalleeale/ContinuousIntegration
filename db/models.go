@@ -41,6 +41,7 @@ type Repo struct {
 type Build struct {
 	ID        uint
 	GitConfig string
+	Status    string `gorm:"default:'pending'"`
 
 	CreatedAt time.Time
 	Repo      Repo

@@ -22,7 +22,7 @@ import (
 	"golang.org/x/exp/slices"
 )
 
-func BuildContainer(repoUrl string, buildID uint, cont db.Container, wg *sync.WaitGroup) {
+func BuildContainer(repoUrl string, buildID uint, cont db.Container, wg *sync.WaitGroup, failed *bool) {
 	defer wg.Done()
 	networkResp, err := DockerCli.NetworkCreate(context.Background(), fmt.Sprintf("%d", cont.Id), types.NetworkCreate{
 		Driver: "bridge",
@@ -66,10 +66,12 @@ func BuildContainer(repoUrl string, buildID uint, cont db.Container, wg *sync.Wa
 		}, nil, "")
 
 		if err != nil {
+			// Never expect docker to error
 			panic(err)
 		}
 
 		if err := DockerCli.ContainerStart(context.TODO(), serviceContainerResponse.ID, types.ContainerStartOptions{}); err != nil {
+			// Never expect docker to error
 			panic(err)
 		}
 
@@ -121,6 +123,7 @@ func BuildContainer(repoUrl string, buildID uint, cont db.Container, wg *sync.Wa
 	}, nil, "")
 
 	if err != nil {
+		// Never expect docker to error
 		panic(err)
 	}
 
@@ -135,6 +138,7 @@ func BuildContainer(repoUrl string, buildID uint, cont db.Container, wg *sync.Wa
 	}
 
 	if err := DockerCli.ContainerStart(context.TODO(), mainContainerResponse.ID, types.ContainerStartOptions{}); err != nil {
+		// Never expect docker to error
 		panic(err)
 	}
 	logString := ""
@@ -142,6 +146,7 @@ func BuildContainer(repoUrl string, buildID uint, cont db.Container, wg *sync.Wa
 	select {
 	case err := <-errCh:
 		if err != nil {
+			// Never expect docker to error
 			panic(err)
 		}
 	case <-statusCh:
@@ -149,6 +154,7 @@ func BuildContainer(repoUrl string, buildID uint, cont db.Container, wg *sync.Wa
 
 	logs, err := DockerCli.ContainerLogs(context.TODO(), mainContainerResponse.ID, types.ContainerLogsOptions{ShowStdout: true, ShowStderr: true})
 	if err != nil {
+		// Never expect docker to error
 		panic(err)
 	}
 	for {
@@ -159,11 +165,13 @@ func BuildContainer(repoUrl string, buildID uint, cont db.Container, wg *sync.Wa
 			if err == io.EOF {
 				break
 			}
+			// Never expect docker to error
 			panic(err)
 		}
 
 		_, err = logs.Read(make([]byte, 3))
 		if err != nil {
+			// Never expect docker to error
 			panic(err)
 		}
 
@@ -182,6 +190,7 @@ func BuildContainer(repoUrl string, buildID uint, cont db.Container, wg *sync.Wa
 	}
 	t, err := DockerCli.ContainerInspect(context.TODO(), mainContainerResponse.ID)
 	if err != nil {
+		// Never expect docker to error
 		panic(err)
 	}
 
@@ -210,17 +219,22 @@ func BuildContainer(repoUrl string, buildID uint, cont db.Container, wg *sync.Wa
 	}
 	DockerCli.NetworkRemove(context.TODO(), networkResp.ID)
 
-	var edges []db.ContainerGraphEdge
-	db.Db.Where(db.ContainerGraphEdge{FromID: uint(cont.Id)}, "FromID").Preload("To.EdgesToward.From").Preload("To.NeededFiles").Preload("To.UploadedFiles").Find(&edges)
-	for _, edge := range edges {
-		for index, from := range edge.To.EdgesToward {
-			if from.From.Code == nil {
-				break
-			}
-			if index == len(edge.To.EdgesToward)-1 {
-				wg.Add(1)
-				go BuildContainer(repoUrl, buildID, edge.To, wg)
+	if t.State.ExitCode == 0 {
+		var edges []db.ContainerGraphEdge
+		db.Db.Where(db.ContainerGraphEdge{FromID: uint(cont.Id)}, "FromID").Preload("To.EdgesToward.From").Preload("To.NeededFiles").Preload("To.UploadedFiles").Find(&edges)
+		for _, edge := range edges {
+			for index, from := range edge.To.EdgesToward {
+				if from.From.Code == nil {
+					break
+				}
+				if index == len(edge.To.EdgesToward)-1 {
+					wg.Add(1)
+					go BuildContainer(repoUrl, buildID, edge.To, wg, failed)
+				}
 			}
 		}
+	} else {
+		newValue := true
+		failed = &newValue
 	}
 }

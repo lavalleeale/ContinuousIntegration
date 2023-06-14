@@ -99,6 +99,7 @@ func HandleBuildWs(c *gin.Context) {
 
 	containers, err := lib.DockerCli.ContainerList(context.TODO(), types.ContainerListOptions{Filters: filters.NewArgs(labelPair)})
 	if err != nil {
+		// Never expect docker to error
 		panic(err)
 	}
 	for _, cont := range containers {

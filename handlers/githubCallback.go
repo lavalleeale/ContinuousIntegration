@@ -27,7 +27,9 @@ func GithubCallback(c *gin.Context) {
 	config := oauth2.Config{ClientID: os.Getenv("GITHUB_CLIENT_ID"), ClientSecret: os.Getenv("GITHUB_CLIENT_SECRET"), Endpoint: provider.Endpoint}
 	token, err := config.Exchange(context.TODO(), c.Query("code"))
 	if err != nil {
-		panic(err)
+		// Code Invalid, should never happen unless user is trying to gain access, does not need explanation
+		c.Redirect(http.StatusFound, "/")
+		return
 	}
 	ts := oauth2.StaticTokenSource(
 		&oauth2.Token{AccessToken: token.AccessToken},
@@ -37,7 +39,10 @@ func GithubCallback(c *gin.Context) {
 	accessTokenClient := github.NewClient(tc)
 	user, _, err := accessTokenClient.Apps.ListUserInstallations(context.TODO(), &github.ListOptions{})
 	if err != nil {
-		panic(err)
+		// Should never fail since access token was just obtained so does not need explanation
+		log.Println(err)
+		c.Redirect(http.StatusFound, "/")
+		return
 	}
 	if slices.IndexFunc(user, func(installation *github.Installation) bool {
 		return *installation.ID == installId

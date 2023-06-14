@@ -40,6 +40,7 @@ func Login(c *gin.Context) {
 		if ok {
 			id, err := strconv.ParseInt(installId, 10, 64)
 			if err != nil {
+				// This will never fail since the user cannot alter their own session
 				panic(err)
 			}
 			user.InstallationIds = pq.Int64Array{id}

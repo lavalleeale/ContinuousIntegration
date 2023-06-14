@@ -158,6 +158,7 @@ func AttachContainer(socket *websocket.Conn, BuildID string, ContainerID string)
 	select {
 	case err := <-errCh:
 		if err != nil {
+			// Never expect docker to error
 			panic(err)
 		}
 	case comp := <-statusCh:

@@ -29,7 +29,7 @@ type BuildData struct {
 	} `json:"containers"`
 }
 
-func StartBuild(repo db.Repo, buildData BuildData, auth []string, callback func(uint)) (db.Build, error) {
+func StartBuild(repo db.Repo, buildData BuildData, auth []string, callback func(uint, bool)) (db.Build, error) {
 	var build = db.Build{RepoID: repo.ID, Containers: make([]db.Container, len(buildData.Containers)), GitConfig: ""}
 
 	if buildData.GitConfig != nil {
@@ -88,19 +88,19 @@ func StartBuild(repo db.Repo, buildData BuildData, auth []string, callback func(
 			for _, need := range *container.Needs {
 				err := d.AddEdge(need, container.ID)
 				if err != nil {
-					//TODO: deal with
-					panic(err)
+					return db.Build{}, err
 				}
 			}
 			if container.NeededFiles != nil {
 				for _, neededFile := range *container.NeededFiles {
 					ancestors, err := d.GetAncestors(container.ID)
 					if err != nil {
+						// Getting ancestors should never fail even if slice is empty
 						panic(err)
 					}
 					found := false
+					split := strings.Split(neededFile, ":")
 					for k := range ancestors {
-						split := strings.Split(neededFile, ":")
 						if k == split[0] {
 							build.Containers[index].NeededFiles = append(build.Containers[index].NeededFiles, db.NeededFile{From: k, FromPath: split[1]})
 							found = true
@@ -109,20 +109,20 @@ func StartBuild(repo db.Repo, buildData BuildData, auth []string, callback func(
 					}
 					if !found {
 						//TODO: deal with
-						panic(found)
+						return db.Build{}, fmt.Errorf("%s needs file from %s however %s was not found in acestors", container.ID, split[0], split[0])
 					}
 				}
 			}
 		} else if container.NeededFiles != nil {
 			//TODO: deal with
-			panic("Needs files but does not have ancestors")
+			return db.Build{}, fmt.Errorf("%s needs files but does not have acestors", container.ID)
 		}
 	}
 
 	err := db.Db.Create(&build).Error
 
 	if err != nil {
-		return db.Build{}, err
+		return db.Build{}, fmt.Errorf("failed to create build")
 	}
 
 	edges := make([]db.ContainerGraphEdge, 0)
@@ -133,28 +133,29 @@ func StartBuild(repo db.Repo, buildData BuildData, auth []string, callback func(
 	if len(edges) != 0 {
 		tx := db.Db.Create(&edges)
 		if tx.Error != nil {
-			panic(tx.Error)
+			return db.Build{}, fmt.Errorf("failed to create build")
 		}
+	}
+
+	repoUrl, err := url.Parse(repo.Url)
+	if err != nil {
+		return db.Build{}, fmt.Errorf("unable to parse repo url %s", repo.Url)
 	}
 	go (func() {
 		var wg sync.WaitGroup
 		wg.Add(1)
+		failed := false
 		for _, container := range d.GetRoots() {
-
 			if len(auth) != 0 {
-				repoUrl, err := url.Parse(repo.Url)
-				if err != nil {
-					panic(err)
-				}
 				repoUrl.User = url.UserPassword(auth[0], auth[1])
-				go BuildContainer(repoUrl.String(), build.ID, *container.(*db.Container), &wg)
+				go BuildContainer(repoUrl.String(), build.ID, *container.(*db.Container), &wg, &failed)
 			} else {
-				go BuildContainer(repo.Url, build.ID, *container.(*db.Container), &wg)
+				go BuildContainer(repo.Url, build.ID, *container.(*db.Container), &wg, &failed)
 			}
 		}
 		wg.Wait()
 		if callback != nil {
-			callback(build.ID)
+			callback(build.ID, failed)
 		}
 	})()
 	return build, nil
@@ -163,6 +164,7 @@ func StartBuild(repo db.Repo, buildData BuildData, auth []string, callback func(
 func treeWalk(d *dag.DAG, startNode db.Container, a *[]db.ContainerGraphEdge) {
 	children, err := d.GetChildren(startNode.Name)
 	if err != nil {
+		// Should never fail since tree was already made
 		panic(err)
 	}
 	for _, childNode := range children {

@@ -18,6 +18,7 @@ func StartDockerClient() {
 	}
 
 	if err != nil {
+		// Never expect docker to error
 		panic(err)
 	}
 }

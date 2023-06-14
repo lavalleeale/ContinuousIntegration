@@ -1,10 +1,12 @@
 package handlers
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"strconv"
 
+	"github.com/bradleyfalzon/ghinstallation"
 	"github.com/gin-gonic/gin"
 	"github.com/gin-gonic/gin/binding"
 	"github.com/lavalleeale/ContinuousIntegration/db"
@@ -41,7 +43,24 @@ func StartBuild(c *gin.Context) {
 		return
 	}
 
-	build, err := lib.StartBuild(repo, buildData, []string{}, nil)
+	authData := []string{}
+	if repo.InstallationId != nil {
+		transport := ghinstallation.NewFromAppsTransport(lib.Itr, *repo.InstallationId)
+		token, err := transport.Token(context.TODO())
+		if err != nil {
+			// This should never fail since the webhook is directly from github and we know that our installation must be valid, and the panic will not be facing users
+			panic(err)
+		}
+		authData = []string{"x-access-token", token}
+	}
+
+	build, err := lib.StartBuild(repo, buildData, authData, func(id uint, failed bool) {
+		if failed {
+			db.Db.Model(db.Build{ID: id}).Update("status", "failed")
+		} else {
+			db.Db.Model(db.Build{ID: id}).Update("status", "succeeded")
+		}
+	})
 
 	if err != nil {
 		c.Redirect(http.StatusFound, "/")

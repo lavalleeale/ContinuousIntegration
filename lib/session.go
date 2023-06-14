@@ -28,6 +28,7 @@ func Session(c *gin.Context) {
 	var sessionData = c.MustGet("session").(map[string]string)
 	session, err := json.Marshal(sessionData)
 	if err != nil {
+		// We have created map so marshalling it should never fail
 		panic(err)
 	}
 	c.SetCookie(
