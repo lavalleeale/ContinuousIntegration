@@ -3,6 +3,7 @@ package handlers
 import (
 	"context"
 	"errors"
+	"log"
 	"net/http"
 	"strconv"
 	"time"
@@ -111,6 +112,7 @@ func AddRepoGithhubPage(c *gin.Context) {
 			})
 			installRepos, _, err := client.Apps.ListRepos(context.TODO(), &github.ListOptions{})
 			if err != nil {
+				log.Println(err)
 				c.Redirect(http.StatusFound, "/")
 				return
 			}

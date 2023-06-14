@@ -41,6 +41,8 @@ func main() {
 
 	lib.StartDockerClient()
 
+	lib.StartGithubClient()
+
 	serverRoot, err := fs.Sub(assetsFS, "assets/output")
 
 	if err != nil {
