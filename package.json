@@ -19,7 +19,7 @@
     "build:js": "esbuild --bundle --sourcemap --minify --target=es2020 --format=esm --outdir=assets/output/ assets/src/*.ts",
     "build": "yarn build:css && yarn build:js",
     "cypress:open": "cypress open --e2e -b electron",
-    "cypress:test": "cypress test -s cypress/e2e/basic.cy.ts"
+    "cypress:test": "cypress run -s cypress/e2e/basic.cy.ts"
   },
   "dependencies": {
     "ansi-to-html": "git+https://github.com/lavalleeale/ansi-to-html#patch-1"

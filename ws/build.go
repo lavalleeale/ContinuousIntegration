@@ -28,15 +28,11 @@ func HandleBuildWs(c *gin.Context) {
 		return
 	}
 
-	cookie, err := c.Request.Cookie("token")
+	session := c.MustGet("session").(map[string]string)
 
-	if err != nil {
-		socket.WriteControl(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseAbnormalClosure, ""), time.Now().Add(time.Second))
-		return
-	}
+	username, ok := session["username"]
 
-	username, err := lib.VerifyJwtString(cookie.Value)
-	if err != nil {
+	if !ok {
 		socket.WriteControl(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseAbnormalClosure, ""), time.Now().Add(time.Second))
 		return
 	}
@@ -97,11 +93,11 @@ func HandleBuildWs(c *gin.Context) {
 	)
 	ctx, close := context.WithTimeout(context.TODO(), time.Minute*30)
 
-	msgs, errs := lib.Cli.Events(ctx, types.EventsOptions{
+	msgs, errs := lib.DockerCli.Events(ctx, types.EventsOptions{
 		Filters: filterPairs,
 	})
 
-	containers, err := lib.Cli.ContainerList(context.TODO(), types.ContainerListOptions{Filters: filters.NewArgs(labelPair)})
+	containers, err := lib.DockerCli.ContainerList(context.TODO(), types.ContainerListOptions{Filters: filters.NewArgs(labelPair)})
 	if err != nil {
 		panic(err)
 	}

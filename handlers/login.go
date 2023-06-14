@@ -4,16 +4,18 @@ import (
 	"errors"
 	"log"
 	"net/http"
-	"os"
+	"strconv"
 
-	"github.com/dgrijalva/jwt-go"
 	"github.com/gin-gonic/gin"
 	"github.com/lavalleeale/ContinuousIntegration/db"
+	"github.com/lib/pq"
 	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
 )
 
 func Login(c *gin.Context) {
+	session := c.MustGet("session").(map[string]string)
+	installId, ok := session["installId"]
 	var dat struct {
 		Username string `form:"username"`
 		Password string `form:"password"`
@@ -35,6 +37,13 @@ func Login(c *gin.Context) {
 			return
 		}
 		user = db.User{Username: dat.Username, Password: string(bytes)}
+		if ok {
+			id, err := strconv.ParseInt(installId, 10, 64)
+			if err != nil {
+				panic(err)
+			}
+			user.InstallationIds = pq.Int64Array{id}
+		}
 		err = db.Db.Create(&db.Organization{Users: []db.User{user}}).Error
 		if err != nil {
 			c.HTML(http.StatusInternalServerError, "login", gin.H{
@@ -52,29 +61,12 @@ func Login(c *gin.Context) {
 		}
 	}
 
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
-		"username": user.Username,
-	})
+	session["username"] = user.Username
+	c.Set("session", session)
 
-	tokenString, err := token.SignedString([]byte(os.Getenv("JWT_SECRET")))
-
-	if err != nil {
-		c.HTML(http.StatusInternalServerError, "login", gin.H{
-			"error": "Server Error",
-		})
-		log.Print("Error Creating Token")
-		return
+	if ok {
+		c.Redirect(http.StatusFound, "/addRepoGithub")
+	} else {
+		c.Redirect(http.StatusFound, "/")
 	}
-
-	c.SetCookie(
-		"token",
-		tokenString,
-		2*60*60,
-		"/",
-		os.Getenv("DOMAIN"),
-		os.Getenv("APP_ENV") == "PRODUCTION",
-		false,
-	)
-
-	c.Redirect(http.StatusFound, "/")
 }

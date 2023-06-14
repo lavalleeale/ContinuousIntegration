@@ -39,7 +39,7 @@ func main() {
 		log.Fatal("Failed to Open DB")
 	}
 
-	lib.StartClient()
+	lib.StartDockerClient()
 
 	serverRoot, err := fs.Sub(assetsFS, "assets/output")
 
@@ -48,6 +48,16 @@ func main() {
 	}
 
 	r := gin.Default()
+
+	r.Use(lib.Session)
+
+	r.POST("/github", handlers.HandleWebhook)
+
+	r.GET("/callback", handlers.GithubCallback)
+
+	r.GET("/addRepoGithub", handlers.AddRepoGithhubPage)
+
+	r.POST("/addRepoGithub", handlers.AddRepoGithub)
 
 	funcMap := template.FuncMap{
 		"Deref": func(i *int) int { return *i },

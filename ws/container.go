@@ -27,20 +27,14 @@ func HandleContainerWs(c *gin.Context) {
 		return
 	}
 
-	cookie, err := c.Request.Cookie("token")
+	session := c.MustGet("session").(map[string]string)
 
-	if err != nil {
+	username, ok := session["username"]
+
+	if !ok {
 		socket.WriteControl(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseAbnormalClosure, ""), time.Now().Add(time.Second))
 		return
 	}
-
-	username, err := lib.VerifyJwtString(cookie.Value)
-
-	if err != nil {
-		socket.WriteControl(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseAbnormalClosure, ""), time.Now().Add(time.Second))
-		return
-	}
-
 	user := db.User{Username: username}
 
 	err = db.Db.First(&user).Error
@@ -86,7 +80,7 @@ func AttachContainer(socket *websocket.Conn, BuildID string, ContainerID string)
 			Value: fmt.Sprintf("containerId=%s", ContainerID),
 		},
 	)
-	containers, err := lib.Cli.ContainerList(
+	containers, err := lib.DockerCli.ContainerList(
 		context.TODO(),
 		types.ContainerListOptions{
 			All:     true,
@@ -107,7 +101,7 @@ func AttachContainer(socket *websocket.Conn, BuildID string, ContainerID string)
 		ctx, close := context.WithTimeout(context.TODO(), time.Second*90)
 
 		filter.Add("event", "start")
-		msgs, errs := lib.Cli.Events(ctx, types.EventsOptions{Filters: filter})
+		msgs, errs := lib.DockerCli.Events(ctx, types.EventsOptions{Filters: filter})
 
 	outer:
 		for {
@@ -130,7 +124,7 @@ func AttachContainer(socket *websocket.Conn, BuildID string, ContainerID string)
 		containerId = containers[0].ID
 	}
 
-	response, err := lib.Cli.ContainerAttach(context.TODO(), containerId, types.ContainerAttachOptions{Stream: true, Stdout: true, Logs: true, Stderr: true})
+	response, err := lib.DockerCli.ContainerAttach(context.TODO(), containerId, types.ContainerAttachOptions{Stream: true, Stdout: true, Logs: true, Stderr: true})
 
 	if err != nil {
 		log.Println(err)
@@ -160,7 +154,7 @@ func AttachContainer(socket *websocket.Conn, BuildID string, ContainerID string)
 		socket.WriteJSON(gin.H{"type": "log", "log": string(p[:n])})
 	}
 
-	statusCh, errCh := lib.Cli.ContainerWait(context.TODO(), containerId, container.WaitConditionNextExit)
+	statusCh, errCh := lib.DockerCli.ContainerWait(context.TODO(), containerId, container.WaitConditionNextExit)
 	select {
 	case err := <-errCh:
 		if err != nil {

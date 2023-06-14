@@ -1,11 +1,15 @@
 package handlers
 
 import (
+	"context"
 	"errors"
 	"net/http"
 	"strconv"
+	"time"
 
+	"github.com/bradleyfalzon/ghinstallation"
 	"github.com/gin-gonic/gin"
+	"github.com/google/go-github/github"
 	"github.com/lavalleeale/ContinuousIntegration/db"
 	"github.com/lavalleeale/ContinuousIntegration/lib"
 	"gorm.io/gorm"
@@ -91,6 +95,28 @@ func ContainerPage(c *gin.Context) {
 
 	if container.Build.Repo.OrganizationID == user.OrganizationID {
 		c.HTML(http.StatusOK, "container", container)
+	} else {
+		c.Redirect(http.StatusFound, "/")
+	}
+}
+
+func AddRepoGithhubPage(c *gin.Context) {
+	var user db.User
+	repos := map[int64][]*github.Repository{}
+	if lib.GetUser(c, &user) {
+		for _, v := range user.InstallationIds {
+			client := github.NewClient(&http.Client{
+				Transport: ghinstallation.NewFromAppsTransport(lib.Itr, v),
+				Timeout:   time.Second * 30,
+			})
+			installRepos, _, err := client.Apps.ListRepos(context.TODO(), &github.ListOptions{})
+			if err != nil {
+				c.Redirect(http.StatusFound, "/")
+				return
+			}
+			repos[v] = installRepos
+		}
+		c.HTML(http.StatusOK, "addRepoGithub", repos)
 	} else {
 		c.Redirect(http.StatusFound, "/")
 	}

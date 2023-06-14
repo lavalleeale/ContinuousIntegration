@@ -4,12 +4,15 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	pq "github.com/lib/pq"
 	"gorm.io/gorm"
 )
 
 type User struct {
 	Password string
 	Username string `gorm:"primaryKey"`
+
+	InstallationIds pq.Int64Array `gorm:"type:integer[]"`
 
 	Organization   Organization
 	OrganizationID uint
@@ -25,7 +28,9 @@ type Organization struct {
 type Repo struct {
 	ID uint
 
-	Url string
+	Url            string
+	InstallationId *int64
+	GithubRepoId   *int64
 
 	Organization   Organization
 	OrganizationID uint
