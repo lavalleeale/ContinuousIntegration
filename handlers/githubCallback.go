@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"context"
+	"log"
 	"net/http"
 	"os"
 	"strconv"
@@ -11,6 +12,7 @@ import (
 	"github.com/lavalleeale/ContinuousIntegration/db"
 	"github.com/lavalleeale/ContinuousIntegration/lib"
 	"github.com/lib/pq"
+	"golang.org/x/exp/slices"
 	"golang.org/x/oauth2"
 	provider "golang.org/x/oauth2/github"
 	"gorm.io/gorm"
@@ -37,7 +39,9 @@ func GithubCallback(c *gin.Context) {
 	if err != nil {
 		panic(err)
 	}
-	if *user[0].ID == installId {
+	if slices.IndexFunc(user, func(installation *github.Installation) bool {
+		return *installation.ID == installId
+	}) != -1 {
 		//verified install id is owned by current user
 		var user db.User
 		if lib.GetUser(c, &user) {
@@ -49,4 +53,5 @@ func GithubCallback(c *gin.Context) {
 			c.Redirect(http.StatusUnauthorized, "/login")
 		}
 	}
+	log.Println(len(user), *user[0].ID, installId)
 }
