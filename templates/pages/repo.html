@@ -30,26 +30,26 @@
     {{ range .Builds }}
     <a href="/build/{{ .ID }}">
       <div class="paper">
-        <p>{{ .ID }}</p>
         {{if eq .Status "pending" }}
         <div
-          class="inline bg-yellow-500 rounded-2xl float-right h-6 w-6 text-center"
+          class="inline bg-yellow-500 rounded-2xl float-right h-6 w-6 text-center text-white"
         >
           ?
         </div>
         {{ else if eq .Status "succeeded" }}
         <div
-          class="inline bg-green-500 rounded-2xl float-right h-6 w-6 text-center"
+          class="inline bg-green-500 rounded-2xl float-right h-6 w-6 text-center text-white"
         >
           ✓
         </div>
         {{ else }}
         <div
-          class="inline bg-red-500 rounded-2xl float-right h-6 w-6 text-center"
+          class="inline bg-red-500 rounded-2xl float-right h-6 w-6 text-center text-white"
         >
           X
         </div>
         {{ end }}
+        <p>{{ .ID }}</p>
       </div>
     </a>
     {{ end }}
