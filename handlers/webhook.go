@@ -118,7 +118,8 @@ func HandleWebhook(c *gin.Context) {
 		}
 	case *github.InstallationEvent:
 		if *event.Action == "deleted" {
-			db.Db.Model(db.User{}).Where("1=1").Update("installation_ids", gorm.Expr("ARRAY_REMOVE(installation_ids, ?)", *event.Installation.ID))
+			// Hack needed because GORM will not update with where clause but is acceptable since ARRAY_REMOVE will only remove given ID
+			db.Db.Model(db.User{}).Where("1 = 1").Update("installation_ids", gorm.Expr("ARRAY_REMOVE(installation_ids, ?)", *event.Installation.ID))
 		}
 	default:
 		log.Printf("Unknown request %s\n", c.Request.Header["X-Github-Event"])
