@@ -12,7 +12,10 @@ import (
 func AddRepo(c *gin.Context) {
 	var user db.User
 
-	lib.GetUser(c, &user)
+	if !lib.GetUser(c, &user) {
+		c.Redirect(http.StatusFound, "/login")
+		return
+	}
 
 	var data struct {
 		Url string `form:"url"`

@@ -38,7 +38,10 @@ func LoginPage(c *gin.Context) {
 func RepoPage(c *gin.Context) {
 	var user db.User
 
-	lib.GetUser(c, &user)
+	if !lib.GetUser(c, &user) {
+		c.Redirect(http.StatusFound, "/login")
+		return
+	}
 
 	repoId, err := strconv.Atoi(c.Param("repoId"))
 
@@ -60,7 +63,10 @@ func RepoPage(c *gin.Context) {
 func BuildPage(c *gin.Context) {
 	var user db.User
 
-	lib.GetUser(c, &user)
+	if !lib.GetUser(c, &user) {
+		c.Redirect(http.StatusFound, "/login")
+		return
+	}
 
 	buildId, err := strconv.Atoi(c.Param("buildId"))
 
@@ -69,8 +75,14 @@ func BuildPage(c *gin.Context) {
 	}
 
 	build := db.Build{ID: uint(buildId), Repo: db.Repo{OrganizationID: user.OrganizationID}}
+	tx := db.Db.Preload("Repo").Preload("Containers").Preload("Containers.UploadedFiles", func(db *gorm.DB) *gorm.DB {
+		return db.Select("id", "path", "container_id")
+	}).Where(&build, "id", "repo.organizationID").First(&build)
 
-	tx := db.Db.Preload("Repo").Preload("Containers").Where(&build, "id", "repo.organizationID").First(&build)
+	if err != nil || build.Repo.OrganizationID != user.OrganizationID {
+		c.Redirect(http.StatusFound, "/")
+		return
+	}
 
 	if tx.Error != nil && errors.Is(tx.Error, gorm.ErrRecordNotFound) {
 		c.Redirect(http.StatusFound, "/")
@@ -120,6 +132,6 @@ func AddRepoGithhubPage(c *gin.Context) {
 		}
 		c.HTML(http.StatusOK, "addRepoGithub", repos)
 	} else {
-		c.Redirect(http.StatusFound, "/")
+		c.Redirect(http.StatusFound, "/login")
 	}
 }

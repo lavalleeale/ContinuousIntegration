@@ -87,5 +87,7 @@ func main() {
 	r.GET("/build/:buildId/containerStatus", ws.HandleBuildWs)
 	r.GET("/build/:buildId/container/:containerId/log", ws.HandleContainerWs)
 
+	r.GET("/file/:fileId", handlers.DownloadFile)
+
 	r.Run()
 }

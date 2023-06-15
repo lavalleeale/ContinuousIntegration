@@ -2,7 +2,6 @@ package lib
 
 import (
 	"encoding/json"
-	"log"
 	"os"
 
 	"github.com/gin-gonic/gin"
@@ -12,10 +11,9 @@ import (
 func Session(c *gin.Context) {
 	cookie, err := c.Request.Cookie("session")
 	if err == nil {
-		userData, err := VerifySession(cookie.Value)
-		log.Println(userData)
+		sessionData, err := VerifySession(cookie.Value)
 		if err == nil {
-			c.Set("session", userData)
+			c.Set("session", sessionData)
 		} else {
 			c.Set("session", map[string]string{})
 		}

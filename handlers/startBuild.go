@@ -36,7 +36,10 @@ func StartBuild(c *gin.Context) {
 
 	var user db.User
 
-	lib.GetUser(c, &user)
+	if !lib.GetUser(c, &user) {
+		c.Redirect(http.StatusFound, "/login")
+		return
+	}
 
 	if user.OrganizationID != repo.OrganizationID {
 		c.Redirect(http.StatusFound, "/")
