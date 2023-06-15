@@ -18,7 +18,7 @@ RUN add-apt-repository \
     "deb [arch=amd64] https://download.docker.com/linux/debian \
     $(lsb_release -cs) \
     stable"
-RUN apt-get update && apt-get install --no-install-recommends -y docker-ce docker-ce-cli containerd.io
+RUN apt-get update && apt-get install --no-install-recommends -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin
 
 # Make directory for transferring files from previous stages
 RUN mkdir -p /neededFiles
