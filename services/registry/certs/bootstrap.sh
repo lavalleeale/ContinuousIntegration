@@ -1,3 +1,6 @@
+#!/usr/bin/env bash
+pushd "${0%/*}" >/dev/null
+
 openssl genrsa -out CA.key 2048
 openssl req -x509 -new -nodes -key CA.key -subj "/C=US/CN=Registry Auth CA" -sha256 -days 1825 -out CA.pem
 
@@ -10,3 +13,5 @@ openssl req -new -key auth.key -subj "/C=US/CN=auth" -config auth.conf -out auth
 openssl x509 -req -in auth.csr -CA CA.pem -CAkey CA.key -extfile auth.conf -outform pem -out auth.crt -days 825 -sha256 -extensions v3_req
 
 cp CA.pem ../../../images/*/
+
+popd >/dev/null
