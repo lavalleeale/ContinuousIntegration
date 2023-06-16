@@ -11,3 +11,33 @@ services:
       POSTGRES_DB: development
     ports:
       - 5432:5432
+    volumes:
+      - "db:/var/lib/postgresql/data"
+  registry:
+    image: registry:2
+    ports:
+      - 5000:5000
+    environment:
+      - REGISTRY_AUTH=token
+      - REGISTRY_AUTH_TOKEN_REALM=https://auth:8081/auth
+      - REGISTRY_AUTH_TOKEN_SERVICE=Authentication
+      - REGISTRY_AUTH_TOKEN_ISSUER=Sample Issuer
+      - REGISTRY_AUTH_TOKEN_ROOTCERTBUNDLE=/mnt/local/certs/auth.crt
+      - REGISTRY_HTTP_TLS_CERTIFICATE=/mnt/local/certs/registry.crt
+      - REGISTRY_HTTP_TLS_KEY=/mnt/local/certs/registry.key
+    volumes:
+      - "../services/registry/certs:/mnt/local/certs"
+      - "registry:/var/lib/registry"
+    restart: always
+  registry_auth:
+    build: ../services/registry
+    ports:
+      - 8081:8081
+    environment:
+      PUSH_SECRET: development
+      JWT_SECRET: development
+    volumes:
+      - "../services/registry/certs:/app/certs"
+volumes:
+  registry:
+  db:

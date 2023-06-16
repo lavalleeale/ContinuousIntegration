@@ -1,0 +1,34 @@
+{{ define "dash" }} {{ template "Header" "modal" }}
+<div class="paper w-[calc(100% - 1px)] overflow-auto">
+  <div class="modal hidden" id="modal">
+    <div class="paper overflow-auto">
+      <h3 class="text-3xl text-center">Add Repo</h3>
+      <form action="/addRepo" method="post">
+        <label>
+          Repo URL <input type="url" class="textfield" name="url" id="url" />
+        </label>
+        <button class="btn btn-blue float-right" type="submit" id="add-repo">
+          Add
+        </button>
+      </form>
+    </div>
+  </div>
+  <button
+    class="float-right btn-pill btn-blue"
+    onclick="window.showModal()"
+    id="show-add-repo"
+  >
+    Add
+  </button>
+  <h2 class="text-3xl mb-4">Repos</h2>
+  <ul>
+    {{ range .repos }}
+    <a href="/repo/{{ .ID }}">
+      <div class="paper">
+        <p>{{ .Url }}</p>
+      </div>
+    </a>
+    {{ end}}
+  </ul>
+</div>
+{{ template "Footer"}} {{end}}

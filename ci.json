@@ -3,19 +3,19 @@
     "id": "assets",
     "image": "base",
     "steps": [
-      "yarn --immutable",
-      "yarn build"
+      "yarn --cwd services/ContinuousIntegration --immutable",
+      "yarn --cwd services/ContinuousIntegration build"
     ],
     "uploads": [
-      "/repo/assets/output"
+      "/repo/services/ContinuousIntegration/assets/output"
     ]
   },
   {
     "id": "go",
     "image": "base",
     "steps": [
-      "cp -a /neededFiles/output assets/output",
-      "go build ."
+      "cp -a /neededFiles/output services/ContinuousIntegration/assets/output",
+      "go build services/ContinuousIntegration"
     ],
     "neededFiles": [
       "assets:/repo/assets/output"
@@ -24,19 +24,19 @@
       "assets"
     ],
     "uploads": [
-      "/repo/ContinuousIntegration"
+      "/repo/services/ContinuousIntegration/ContinuousIntegration"
     ]
   },
   {
     "id": "test",
     "image": "base",
     "steps": [
-      "cp /neededFiles/ContinuousIntegration ContinuousIntegration",
+      "cp /neededFiles/ContinuousIntegration services/ContinuousIntegration/ContinuousIntegration",
       "(dockerd > dockerlog.txt 2>&1 &)",
-      "echo \"RE9NQUlOPWxvY2FsaG9zdApKV1RfU0VDUkVUPWRldmVsb3BtZW50CkRPQ0tFUl9IT1NUPWxvY2FsCkRBVEFCQVNFX1VSTD1wb3N0Z3JlczovL2RldmVsb3BtZW50OmRldmVsb3BtZW50QHNlcnZpY2U6NTQzMi9kZXZlbG9wbWVudD9zc2xtb2RlPWRpc2FibGUKUlVOVElNRT1ydW5j\" | base64 -d > .env",
-      "yarn --immutable",
+      "echo \"RE9NQUlOPWxvY2FsaG9zdApKV1RfU0VDUkVUPWRldmVsb3BtZW50CkRPQ0tFUl9IT1NUPWxvY2FsCkRBVEFCQVNFX1VSTD1wb3N0Z3JlczovL2RldmVsb3BtZW50OmRldmVsb3BtZW50QHNlcnZpY2U6NTQzMi9kZXZlbG9wbWVudD9zc2xtb2RlPWRpc2FibGUKUlVOVElNRT1ydW5j\" | base64 -d > services/ContinuousIntegration/.env",
+      "yarn --cwd services/ContinuousIntegration --immutable",
       "docker build ./images/base -t base",
-      "yarn conc --kill-others --names \"server,cypress\" --success \"command-cypress\" \"./ContinuousIntegration > serverlog.txt 2>&1\" \"yarn cypress run -s cypress/e2e/basic.cy.ts\""
+      "yarn -cwd services/ContinuousIntegration conc --kill-others --names \"server,cypress\" --success \"command-cypress\" \"./ContinuousIntegration > serverlog.txt 2>&1\" \"yarn cypress run -s cypress/e2e/basic.cy.ts\""
     ],
     "needs": [
       "go"

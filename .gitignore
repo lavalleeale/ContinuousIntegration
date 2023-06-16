@@ -1,7 +1,10 @@
-/build
-/assets/output
-/node_modules
+build
+output
+node_modules
 .env
 .DS_Store
-cypress/videos
-/ContinuousIntegration
+videos
+*.crt
+*.pem
+*.key
+*.csr

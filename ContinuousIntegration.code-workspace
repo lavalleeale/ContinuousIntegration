@@ -1,0 +1,14 @@
+{
+	"folders": [
+		{
+			"path": "."
+		},
+		{
+			"path": "services/registry"
+		},
+		{
+			"path": "services/ContinuousIntegration"
+		}
+	],
+	"settings": {}
+}

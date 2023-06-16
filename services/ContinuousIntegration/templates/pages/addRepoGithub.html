@@ -1,0 +1,14 @@
+{{ define "addRepoGithub" }} {{ template "Header" }}
+<div class="paper w-[calc(100% - 1px)] m-10 overflow-auto">
+  <h2 class="text-2xl font-semibold">Add Repo From Github</h2>
+  {{ range $installId, $repos := . }} {{range $repos }}
+  <form class="paper" method="post">
+    <input type="hidden" value="{{.ID}}" name="repoId" />
+    <input type="hidden" value="{{$installId}}" name="installId" />
+    <button type="submit">
+      <p>{{.Name}}</p>
+    </button>
+  </form>
+  {{ end }} {{ end }}
+</div>
+{{ template "Footer" }} {{end}}

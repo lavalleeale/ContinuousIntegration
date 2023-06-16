@@ -1,0 +1,59 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+pre {
+  font-family: monospace;
+}
+
+p,
+h1,
+h2,
+h3,
+h4,
+h5,
+h6,
+label,
+code,
+pre {
+  @apply dark:text-white;
+}
+
+a {
+  @apply text-blue-600 hover:text-blue-800;
+}
+
+.paper {
+  @apply p-2 m-1 rounded-md dark:bg-slate-900 bg-white border border-gray-300 dark:border-gray-700;
+}
+
+.modal {
+  @apply w-full h-full absolute top-0 left-0;
+}
+
+.modal > * {
+  @apply w-1/2 absolute top-1/4 left-1/4;
+}
+
+.btn {
+  @apply font-bold py-2 px-4 rounded;
+}
+.btn-pill {
+  @apply font-bold py-2 px-4 rounded-full;
+}
+.btn-white {
+  @apply bg-slate-100 text-black;
+}
+.btn-white:hover {
+  @apply bg-slate-200;
+}
+.btn-blue {
+  @apply bg-blue-500 text-white;
+}
+.btn-blue:hover {
+  @apply bg-blue-700;
+}
+
+.textfield {
+  @apply dark:disabled:bg-slate-800 dark:bg-slate-500 disabled:bg-slate-400 bg-slate-100 w-full p-1 mb-1 rounded-md;
+}

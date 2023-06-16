@@ -1,0 +1,5 @@
+build
+assets/output
+node_modules
+.env
+registry/certs

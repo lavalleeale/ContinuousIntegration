@@ -1,0 +1,58 @@
+{{ define "repo" }} {{ template "Header" "modal" }}
+<div class="paper w-[calc(100% - 1px)] overflow-auto">
+  <div class="modal hidden" id="modal">
+    <div class="paper h-1/2 overflow-auto">
+      <form class="h-full" action="/repo/{{ .ID }}/build" method="post">
+        <h3 class="text-3xl text-center">Add Build</h3>
+        <label>
+          Build Command
+          <textarea
+            class="textfield h-3/4"
+            name="command"
+            id="command"
+          ></textarea>
+        </label>
+        <button class="btn btn-blue float-right" type="submit" id="add-build">
+          Build
+        </button>
+      </form>
+    </div>
+  </div>
+  <button
+    class="float-right btn-pill btn-blue"
+    onclick="window.showModal()"
+    id="show-add-build"
+  >
+    Add Build
+  </button>
+  <h2 class="text-3xl mb-4">Repo <a href="{{ .Url }}">{{ .Url }}</a></h2>
+  <ul>
+    {{ range .Builds }}
+    <a href="/build/{{ .ID }}">
+      <div class="paper">
+        {{if eq .Status "pending" }}
+        <div
+          class="inline bg-yellow-500 rounded-2xl float-right h-6 w-6 text-center text-white"
+        >
+          ?
+        </div>
+        {{ else if eq .Status "succeeded" }}
+        <div
+          class="inline bg-green-500 rounded-2xl float-right h-6 w-6 text-center text-white"
+        >
+          ✓
+        </div>
+        {{ else }}
+        <div
+          class="inline bg-red-500 rounded-2xl float-right h-6 w-6 text-center text-white"
+        >
+          X
+        </div>
+        {{ end }}
+        <p>{{ .ID }}</p>
+      </div>
+    </a>
+    {{ end }}
+  </ul>
+</div>
+{{ template "Footer" }} {{end}}

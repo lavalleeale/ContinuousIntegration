@@ -20,5 +20,8 @@ RUN add-apt-repository \
     stable"
 RUN apt-get update && apt-get install --no-install-recommends -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin
 
+ADD CA.pem /usr/local/share/ca-certificates/registry.crt
+RUN chmod 644 /usr/local/share/ca-certificates/registry.crt && update-ca-certificates
+
 # Make directory for transferring files from previous stages
 RUN mkdir -p /neededFiles
