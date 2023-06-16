@@ -108,13 +108,11 @@ func StartBuild(repo db.Repo, buildData BuildData, auth []string, callback func(
 						}
 					}
 					if !found {
-						//TODO: deal with
 						return db.Build{}, fmt.Errorf("%s needs file from %s however %s was not found in acestors", container.ID, split[0], split[0])
 					}
 				}
 			}
 		} else if container.NeededFiles != nil {
-			//TODO: deal with
 			return db.Build{}, fmt.Errorf("%s needs files but does not have acestors", container.ID)
 		}
 	}

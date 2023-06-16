@@ -129,7 +129,6 @@ func BuildContainer(repoUrl string, buildID uint, cont db.Container, wg *sync.Wa
 
 	for _, neededFile := range cont.NeededFiles {
 		neededCont := build.Containers[slices.IndexFunc(build.Containers, func(cont db.Container) bool { return cont.Name == neededFile.From })]
-		// TODO: handle not found
 		uploadedFile := neededCont.UploadedFiles[slices.IndexFunc(neededCont.UploadedFiles, func(file db.UploadedFile) bool { return file.Path == neededFile.FromPath })]
 		err = DockerCli.CopyToContainer(context.TODO(), mainContainerResponse.ID, "/neededFiles/", bytes.NewReader(uploadedFile.Bytes), types.CopyToContainerOptions{})
 		if err != nil {

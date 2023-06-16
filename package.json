@@ -15,7 +15,7 @@
     "watch:css": "tailwindcss -i assets/src/input.css -o ./assets/output/dist.css --watch",
     "watch:js": "esbuild --bundle --sourcemap --minify --target=es2020 --format=esm --watch --outdir=assets/output/ assets/src/*.ts",
     "watch": "concurrently \"yarn watch:css\" \"yarn watch:js\"",
-    "build:css": "tailwindcss -i assets/src/input.css -o ./assets/output/dist.css",
+    "build:css": "tailwindcss --minify -i assets/src/input.css -o ./assets/output/dist.css",
     "build:js": "esbuild --bundle --sourcemap --minify --target=es2020 --format=esm --outdir=assets/output/ assets/src/*.ts",
     "build": "yarn build:css && yarn build:js",
     "cypress:open": "cypress open --e2e -b electron",
