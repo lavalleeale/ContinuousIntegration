@@ -15,7 +15,7 @@
     "image": "base",
     "steps": [
       "cp -a /neededFiles/output services/ContinuousIntegration/assets/output",
-      "go build ./services/ContinuousIntegration"
+      "go build -C services/ContinuousIntegration"
     ],
     "neededFiles": [
       "assets:/repo/services/ContinuousIntegration/assets/output"

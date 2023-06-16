@@ -8,3 +8,4 @@ videos
 *.pem
 *.key
 *.csr
+/services/ContinuousIntegration/ContinuousIntegration
