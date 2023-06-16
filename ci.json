@@ -18,7 +18,7 @@
       "go build services/ContinuousIntegration"
     ],
     "neededFiles": [
-      "assets:/repo/assets/output"
+      "assets:/repo/services/ContinuousIntegration/assets/output"
     ],
     "needs": [
       "assets"
@@ -42,7 +42,7 @@
       "go"
     ],
     "neededFiles": [
-      "go:/repo/ContinuousIntegration"
+      "go:/repo/services/ContinuousIntegration/ContinuousIntegration"
     ],
     "service": {
       "image": "postgres",
