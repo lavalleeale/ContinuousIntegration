@@ -1,7 +1,7 @@
 {{ define "container" }} {{ template "Header" "container" }}
 <div class="paper w-[calc(100% - 1px)] overflow-auto">
   <h3 class="text-3xl mb-4">Container {{ .Name }}</h3>
-  <h3 class="text-2xl mb-4">Build: {{ .Build.ID }}</h3>
+  <h3 class="text-2xl mb-4">Build: <a href="/build/{{.Build.ID}}">{{ .Build.ID }}</a></h3>
   <h3 class="text-2xl mb-4" id="code">
     Exit Code: {{ if .Code }} {{ .Code }} {{ else }} Running {{ end }}
   </h3>
