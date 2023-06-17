@@ -15,11 +15,11 @@ type User struct {
 	InstallationIds pq.Int64Array `gorm:"type:integer[]"`
 
 	Organization   Organization
-	OrganizationID uint
+	OrganizationID string
 }
 
 type Organization struct {
-	ID uint
+	ID string `gorm:"primaryKey"`
 
 	Repos []Repo `gorm:"constraint:OnDelete:CASCADE;"`
 	Users []User `gorm:"constraint:OnDelete:CASCADE;"`
@@ -33,7 +33,7 @@ type Repo struct {
 	GithubRepoId   *int64
 
 	Organization   Organization
-	OrganizationID uint
+	OrganizationID string
 
 	Builds []Build `gorm:"constraint:OnDelete:CASCADE;"`
 }

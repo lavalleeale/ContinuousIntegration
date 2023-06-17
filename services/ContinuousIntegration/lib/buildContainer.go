@@ -24,7 +24,7 @@ import (
 	"golang.org/x/exp/slices"
 )
 
-func BuildContainer(repoUrl string, buildID uint, cont db.Container, wg *sync.WaitGroup, failed *bool) {
+func BuildContainer(repoUrl string, buildID uint, cont db.Container, organizationId string, wg *sync.WaitGroup, failed *bool) {
 	defer wg.Done()
 	networkResp, err := DockerCli.NetworkCreate(context.Background(),
 		fmt.Sprintf("%d", cont.Id), types.NetworkCreate{
@@ -111,10 +111,10 @@ func BuildContainer(repoUrl string, buildID uint, cont db.Container, wg *sync.Wa
 	db.Db.Preload("Containers.UploadedFiles").First(&build)
 
 	var dockerAuth struct {
-		RepoID uint `json:"repoID"`
+		OrganizationID string `json:"organizationId"`
 	}
 
-	dockerAuth.RepoID = build.RepoID
+	dockerAuth.OrganizationID = organizationId
 
 	dockerAuthData, _ := json.Marshal(dockerAuth)
 
@@ -262,7 +262,7 @@ func BuildContainer(repoUrl string, buildID uint, cont db.Container, wg *sync.Wa
 				}
 				if index == len(edge.To.EdgesToward)-1 {
 					wg.Add(1)
-					go BuildContainer(repoUrl, buildID, edge.To, wg, failed)
+					go BuildContainer(repoUrl, buildID, edge.To, organizationId, wg, failed)
 				}
 			}
 		}

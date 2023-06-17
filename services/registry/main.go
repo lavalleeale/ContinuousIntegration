@@ -20,7 +20,7 @@ import (
 )
 
 type authData struct {
-	RepoID int64 `json:"repoID"`
+	OrganizationID string `json:"organizationId"`
 }
 
 type tokenServer struct {
@@ -167,7 +167,7 @@ func (srv *tokenServer) authenticate(r *http.Request, opt *Option) (authData, er
 	}
 
 	if username == "root" && password == os.Getenv("PUSH_SECRET") {
-		return authData{RepoID: 0}, nil
+		return authData{OrganizationID: "root"}, nil
 	}
 
 	marshaledData, err := sessionseal.Unseal(os.Getenv("JWT_SECRET"), password)
@@ -187,10 +187,10 @@ func (srv *tokenServer) authenticate(r *http.Request, opt *Option) (authData, er
 }
 
 func (srv *tokenServer) authorize(opt *Option, data authData) []string {
-	if data.RepoID == 0 {
+	if data.OrganizationID == "root" {
 		return []string{"pull", "push"}
 	}
-	if strings.Split(opt.name, "/")[0] == fmt.Sprintf("%d", data.RepoID) {
+	if strings.Split(opt.name, "/")[0] == data.OrganizationID {
 		return []string{"pull", "push"}
 	}
 	// unauthorized, no permission is granted

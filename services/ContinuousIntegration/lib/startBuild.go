@@ -148,9 +148,9 @@ func StartBuild(repo db.Repo, buildData BuildData, auth []string, callback func(
 			if len(auth) != 0 {
 				repoUrl.User = url.UserPassword(auth[0], auth[1])
 				go BuildContainer(repoUrl.String(), build.ID,
-					*container.(*db.Container), &wg, &failed)
+					*container.(*db.Container), repo.OrganizationID, &wg, &failed)
 			} else {
-				go BuildContainer(repo.Url, build.ID, *container.(*db.Container), &wg, &failed)
+				go BuildContainer(repo.Url, build.ID, *container.(*db.Container), repo.OrganizationID, &wg, &failed)
 			}
 		}
 		wg.Wait()

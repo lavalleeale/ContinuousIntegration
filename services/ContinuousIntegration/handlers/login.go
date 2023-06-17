@@ -22,6 +22,10 @@ func Login(c *gin.Context) {
 		Password string `form:"password"`
 	}
 
+	if dat.Username == "root" {
+		return
+	}
+
 	err := c.ShouldBind(&dat)
 	if err != nil {
 		log.Print("Failed to Unmarshal JSON")
@@ -46,7 +50,7 @@ func Login(c *gin.Context) {
 			}
 			user.InstallationIds = pq.Int64Array{id}
 		}
-		err = db.Db.Create(&db.Organization{Users: []db.User{user}}).Error
+		err = db.Db.Create(&db.Organization{Users: []db.User{user}, ID: user.Username}).Error
 		if err != nil {
 			c.HTML(http.StatusInternalServerError, "login", gin.H{
 				"error": "Failed to create user",
