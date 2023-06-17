@@ -10,7 +10,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
-	"github.com/lavalleeale/ContinuousIntegration/services/ContinuousIntegration/db"
+	"github.com/lavalleeale/ContinuousIntegration/lib/db"
 	"github.com/lavalleeale/ContinuousIntegration/services/ContinuousIntegration/handlers"
 	"github.com/lavalleeale/ContinuousIntegration/services/ContinuousIntegration/lib"
 	"github.com/lavalleeale/ContinuousIntegration/services/ContinuousIntegration/ws"

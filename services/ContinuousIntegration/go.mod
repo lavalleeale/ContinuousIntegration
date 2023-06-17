@@ -11,7 +11,13 @@ require (
 	golang.org/x/crypto v0.10.0
 	gorm.io/driver/postgres v1.5.2
 	gorm.io/gorm v1.25.1
+	github.com/lavalleeale/ContinuousIntegration/lib/db v1.0.0
+	github.com/lavalleeale/ContinuousIntegration/lib/auth v1.0.0
 )
+
+replace github.com/lavalleeale/ContinuousIntegration/lib/db => ../../lib/db
+
+replace github.com/lavalleeale/ContinuousIntegration/lib/auth => ../../lib/auth
 
 require (
 	github.com/bytedance/sonic v1.9.1 // indirect

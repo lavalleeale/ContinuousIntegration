@@ -9,7 +9,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/go-github/github"
-	"github.com/lavalleeale/ContinuousIntegration/services/ContinuousIntegration/db"
+	"github.com/lavalleeale/ContinuousIntegration/lib/db"
 	"github.com/lavalleeale/ContinuousIntegration/services/ContinuousIntegration/lib"
 	"github.com/lib/pq"
 	"golang.org/x/exp/slices"

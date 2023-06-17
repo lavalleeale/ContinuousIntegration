@@ -8,6 +8,12 @@
 		},
 		{
 			"path": "services/ContinuousIntegration"
+		},
+		{
+			"path": "lib/db"
+		},
+		{
+			"path": "lib/auth"
 		}
 	],
 	"settings": {}

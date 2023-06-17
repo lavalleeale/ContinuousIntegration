@@ -1,3 +1,4 @@
+
 import ReconnectingWebSocket from "reconnecting-websocket";
 
 window.onload = () => {
@@ -5,7 +6,7 @@ window.onload = () => {
     document.querySelectorAll("[id]").length -
     document.querySelectorAll(".bg-green-500").length;
   const ws = new ReconnectingWebSocket(
-    `ws://localhost:8080/build/${window.location.href.substring(
+    `${window.location.protocol.replace("http","ws")}//${window.location.host}/build/${window.location.href.substring(
       window.location.href.lastIndexOf("/") + 1
     )}/containerStatus`
   );

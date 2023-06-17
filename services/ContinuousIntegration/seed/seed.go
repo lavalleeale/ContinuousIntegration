@@ -4,7 +4,7 @@ import (
 	"log"
 
 	"github.com/joho/godotenv"
-	"github.com/lavalleeale/ContinuousIntegration/services/ContinuousIntegration/db"
+	"github.com/lavalleeale/ContinuousIntegration/lib/db"
 )
 
 func main() {

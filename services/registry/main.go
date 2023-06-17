@@ -16,6 +16,8 @@ import (
 	"github.com/docker/distribution/registry/auth/token"
 	"github.com/docker/libtrust"
 	"github.com/joho/godotenv"
+	"github.com/lavalleeale/ContinuousIntegration/lib/auth"
+	"github.com/lavalleeale/ContinuousIntegration/lib/db"
 	sessionseal "github.com/lavalleeale/SessionSeal"
 )
 
@@ -85,15 +87,15 @@ func (srv *tokenServer) createToken(opt *Option, actions []string) (*Token, erro
 	if err != nil {
 		return nil, err
 	}
-	now := time.Now().Unix()
-	exp := now + time.Now().Add(24*time.Hour).Unix()
+	now := time.Now()
+	exp := now.Add(60 * time.Second)
 	claim := token.ClaimSet{
 		Issuer:     opt.issuer,
 		Subject:    opt.account,
 		Audience:   opt.service,
-		Expiration: exp,
-		NotBefore:  now - 10,
-		IssuedAt:   now,
+		Expiration: exp.Unix(),
+		NotBefore:  now.Add(time.Second * -10).Unix(),
+		IssuedAt:   now.Unix(),
 		JWTID:      fmt.Sprintf("%d", rand.Int63()),
 		Access:     []*token.ResourceActions{},
 	}
@@ -166,24 +168,28 @@ func (srv *tokenServer) authenticate(r *http.Request, opt *Option) (authData, er
 		return authData{}, fmt.Errorf("invalid username")
 	}
 
-	if username == "root" && password == os.Getenv("PUSH_SECRET") {
-		return authData{OrganizationID: "root"}, nil
+	if username == "token" {
+		marshaledData, err := sessionseal.Unseal(os.Getenv("JWT_SECRET"), password)
+		if err != nil {
+			return authData{}, fmt.Errorf("invalid password")
+		}
+
+		var data authData
+
+		err = json.Unmarshal(marshaledData, &data)
+
+		if err != nil {
+			return authData{}, fmt.Errorf("invalid json")
+		}
+
+		return data, nil
+	} else {
+		user, err := auth.Login(username, password, false)
+		if err != nil {
+			return authData{}, err
+		}
+		return authData{OrganizationID: user.OrganizationID}, nil
 	}
-
-	marshaledData, err := sessionseal.Unseal(os.Getenv("JWT_SECRET"), password)
-	if err != nil {
-		return authData{}, fmt.Errorf("invalid password")
-	}
-
-	var data authData
-
-	err = json.Unmarshal(marshaledData, &data)
-
-	if err != nil {
-		return authData{}, fmt.Errorf("invalid json")
-	}
-
-	return data, nil
 }
 
 func (srv *tokenServer) authorize(opt *Option, data authData) []string {
@@ -214,6 +220,8 @@ func main() {
 	if err != nil {
 		log.Println(err)
 	}
+
+	db.Open()
 
 	srv, err := newTokenServer("certs/auth.crt", "certs/auth.key")
 	if err != nil {

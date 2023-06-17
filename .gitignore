@@ -9,3 +9,4 @@ videos
 *.key
 *.csr
 /services/ContinuousIntegration/ContinuousIntegration
+/services/registry/registry

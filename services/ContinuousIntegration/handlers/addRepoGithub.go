@@ -10,7 +10,7 @@ import (
 	"github.com/bradleyfalzon/ghinstallation"
 	"github.com/gin-gonic/gin"
 	"github.com/google/go-github/github"
-	"github.com/lavalleeale/ContinuousIntegration/services/ContinuousIntegration/db"
+	"github.com/lavalleeale/ContinuousIntegration/lib/db"
 	"github.com/lavalleeale/ContinuousIntegration/services/ContinuousIntegration/lib"
 	"golang.org/x/exp/slices"
 )

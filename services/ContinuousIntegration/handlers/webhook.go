@@ -15,7 +15,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/gin-gonic/gin/binding"
 	"github.com/google/go-github/github"
-	"github.com/lavalleeale/ContinuousIntegration/services/ContinuousIntegration/db"
+	"github.com/lavalleeale/ContinuousIntegration/lib/db"
 	"github.com/lavalleeale/ContinuousIntegration/services/ContinuousIntegration/lib"
 	"gorm.io/gorm"
 )
@@ -182,8 +182,7 @@ func HandleWebhook(c *gin.Context) {
 	case *github.InstallationEvent:
 		if *event.Action == "deleted" {
 			// TODO: Remove from builds
-			// Hack needed because GORM will not update with where clause but is acceptable since ARRAY_REMOVE will only remove given ID
-			db.Db.Model(db.User{}).Where("1 = 1").Update("installation_ids",
+			db.Db.Session(&gorm.Session{AllowGlobalUpdate: true}).Model(db.User{}).Update("installation_ids",
 				gorm.Expr("ARRAY_REMOVE(installation_ids, ?)", *event.Installation.ID))
 			db.Db.Model(db.Repo{}).Select("installation_id", "github_repo_id").Where(
 				"installation_id = ?", *event.Installation.ID).Updates(db.Repo{

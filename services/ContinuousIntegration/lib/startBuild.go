@@ -7,7 +7,7 @@ import (
 	"sync"
 
 	"github.com/heimdalr/dag"
-	"github.com/lavalleeale/ContinuousIntegration/services/ContinuousIntegration/db"
+	"github.com/lavalleeale/ContinuousIntegration/lib/db"
 )
 
 type BuildData struct {
