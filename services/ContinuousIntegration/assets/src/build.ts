@@ -1,5 +1,10 @@
-(() => {
-  const ws = new WebSocket(
+import ReconnectingWebSocket from "reconnecting-websocket";
+
+window.onload = () => {
+  var left =
+    document.querySelectorAll("[id]").length -
+    document.querySelectorAll(".bg-green-500").length;
+  const ws = new ReconnectingWebSocket(
     `ws://localhost:8080/build/${window.location.href.substring(
       window.location.href.lastIndexOf("/") + 1
     )}/containerStatus`
@@ -20,10 +25,14 @@
       } else if (data.code === "0") {
         container.classList.add("bg-green-500");
         container.innerHTML = "✓";
+        left--;
+        if (left === 0) {
+          ws.close();
+        }
       } else {
         container.classList.add("bg-red-500");
         container.innerHTML = "X";
       }
     }
   };
-})();
+};

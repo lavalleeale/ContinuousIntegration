@@ -33,10 +33,16 @@
     "steps": [
       "cp /neededFiles/ContinuousIntegration services/ContinuousIntegration/ContinuousIntegration",
       "(dockerd > dockerlog.txt 2>&1 &)",
-      "echo \"RE9NQUlOPWxvY2FsaG9zdApKV1RfU0VDUkVUPWRldmVsb3BtZW50CkRPQ0tFUl9IT1NUPWxvY2FsCkRBVEFCQVNFX1VSTD1wb3N0Z3JlczovL2RldmVsb3BtZW50OmRldmVsb3BtZW50QHNlcnZpY2U6NTQzMi9kZXZlbG9wbWVudD9zc2xtb2RlPWRpc2FibGUKUlVOVElNRT1ydW5j\" | base64 -d > services/ContinuousIntegration/.env",
+      "echo \"RE9NQUlOPWxvY2FsaG9zdApKV1RfU0VDUkVUPWRldmVsb3BtZW50CkRPQ0tFUl9IT1NUPWxvY2FsCkRBVEFCQVNFX1VSTD1wb3N0Z3JlczovL2RldmVsb3BtZW50OmRldmVsb3BtZW50QHNlcnZpY2U6NTQzMi9kZXZlbG9wbWVudD9zc2xtb2RlPWRpc2FibGUKUlVOVElNRT1ydW5jClJFR0lTVFJZX0hPU1Q9IjEuMS4xLjEiClJFR0lTVFJZX0FVVEhfSE9TVD0iMS4xLjEuMSI=\" | base64 -d > services/ContinuousIntegration/.env",
       "yarn --cwd services/ContinuousIntegration --immutable",
-      "docker build ./images/base -t base",
-      "yarn -cwd services/ContinuousIntegration conc --kill-others --names \"server,cypress\" --success \"command-cypress\" \"./ContinuousIntegration > serverlog.txt 2>&1\" \"yarn cypress run -s cypress/e2e/basic.cy.ts\""
+      "docker buildx create --driver docker-container --name mybuilder --use --bootstrap",
+      "docker cp /usr/local/share/ca-certificates/registry.crt buildx_buildkit_mybuilder0:/usr/local/share/ca-certificates/registry.crt",
+      "docker exec buildx_buildkit_mybuilder0 update-ca-certificates",
+      "docker login --username=$DOCKER_USER --password=$DOCKER_PASS $(getent hosts registry | awk '{ print $1 }'):5000",
+      "docker buildx build --tag $(getent hosts registry | awk '{ print $1 }'):5000/1/base --cache-to=type=registry,ref=$(getent hosts registry | awk '{ print $1 }'):5000/1/base:CI,mode=max --cache-from=type=registry,ref=$(getent hosts registry | awk '{ print $1 }'):5000/1/base:CI --push images/base",
+      "docker pull $(getent hosts registry | awk '{ print $1 }'):5000/1/base",
+      "docker tag $(getent hosts registry | awk '{ print $1 }'):5000/1/base base",
+      "yarn --cwd services/ContinuousIntegration conc --kill-others --names \"server,cypress\" --success \"command-cypress\" \"./ContinuousIntegration\" \"yarn cypress run -s cypress/e2e/basic.cy.ts\""
     ],
     "needs": [
       "go"

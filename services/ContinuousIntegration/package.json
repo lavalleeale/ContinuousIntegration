@@ -22,7 +22,8 @@
     "cypress:test": "cypress run -s cypress/e2e/basic.cy.ts"
   },
   "dependencies": {
-    "ansi-to-html": "git+https://github.com/lavalleeale/ansi-to-html#patch-1"
+    "ansi-to-html": "git+https://github.com/lavalleeale/ansi-to-html#patch-1",
+    "reconnecting-websocket": "^4.4.0"
   },
   "packageManager": "yarn@1.22.19"
 }

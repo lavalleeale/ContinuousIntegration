@@ -1,4 +1,5 @@
 import Convert from "ansi-to-html";
+import ReconnectingWebSocket from "reconnecting-websocket";
 const convert = new Convert({
   newline: true,
   stream: false,
@@ -14,7 +15,7 @@ const log = document.getElementById("log")!;
     return;
   }
 
-  const ws = new WebSocket(
+  const ws = new ReconnectingWebSocket(
     `ws://localhost:8080/build/${
       window.location.href.split("/")[4]
     }/container/${window.location.href.split("/")[6]}/log`
@@ -32,6 +33,7 @@ const log = document.getElementById("log")!;
       }
     } else {
       code.innerText = code.innerText = `Exit Code: ${data.code}`;
+      ws.close();
     }
   };
 })();
