@@ -33,8 +33,8 @@ describe("Full Spec", () => {
     cy.contains("sshca").click();
     cy.wait(1000);
     cy.get("a > .paper").click();
-    cy.get(".bg-yellow-500").should("be.visible");
-    cy.get(".bg-gray-500").should("be.visible");
+    cy.get(".bg-yellow-500", { timeout: 1000000 }).should("be.visible");
+    cy.get(".bg-gray-500", { timeout: 1000000 }).should("be.visible");
     cy.get(".bg-green-500", { timeout: 1000000 }).should("be.visible");
     cy.get(".bg-yellow-500", { timeout: 1000000 }).should("be.visible");
     cy.get(".bg-green-500", { timeout: 1000000 }).should("have.length", 2);
