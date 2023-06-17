@@ -1,0 +1,43 @@
+# syntax=docker/dockerfile:1
+
+FROM node:16 as assets
+
+WORKDIR /app
+
+COPY services/ContinuousIntegration/package.json services/ContinuousIntegration/yarn.lock ./
+
+RUN yarn install --frozen-lockfile
+
+COPY services/ContinuousIntegration/assets ./assets
+
+RUN yarn build
+
+FROM golang:1.20 as builder
+
+WORKDIR /app/services/ContinuousIntegration/
+
+COPY services/ContinuousIntegration/go.* .
+COPY lib/db/go.* /app/lib/db/
+COPY lib/auth/go.* /app/lib/auth/
+
+RUN go mod download
+
+COPY services/ContinuousIntegration .
+COPY lib/db /app/lib/db
+COPY lib/auth /app/lib/auth
+
+COPY --from=assets /app/assets/output ./assets/output
+
+RUN go build -o /build
+
+FROM golang:1.20 as runner
+
+WORKDIR /app
+
+ENV APP_ENV=PRODUCTION
+
+COPY --from=builder /build .
+
+EXPOSE 8080
+
+CMD ["/app/build"]

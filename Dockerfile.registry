@@ -1,0 +1,29 @@
+# syntax=docker/dockerfile:1
+
+FROM golang:1.20 as builder
+
+WORKDIR /app/services/registry/
+
+COPY services/registry/go.* .
+COPY lib/db/go.* /app/lib/db/
+COPY lib/auth/go.* /app/lib/auth/
+
+RUN go mod download
+
+COPY services/registry .
+COPY lib/db /app/lib/db
+COPY lib/auth /app/lib/auth
+
+RUN go build -o /build
+
+FROM golang:1.20
+
+WORKDIR /app
+
+ENV APP_ENV=PRODUCTION
+
+COPY --from=builder /build .
+
+EXPOSE 8081
+
+CMD ["/app/build"]

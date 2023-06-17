@@ -16,5 +16,11 @@
 			"path": "lib/auth"
 		}
 	],
-	"settings": {}
+	"settings": {
+		"remote.SSH.defaultForwardedPorts": [
+			{"localPort": 8080, "remotePort": 8080, "name": "Server"},
+			{"localPort": 5000, "remotePort": 5000, "name": "Registry"},
+			{"localPort": 8081, "remotePort": 8081, "name": "Registry Auth"}
+		]
+	}
 }

@@ -1,0 +1,12 @@
+**/build
+**/output
+**/node_modules
+**/.env
+**/.DS_Store
+**/videos
+**/*.crt
+**/*.pem
+**/*.key
+**/*.csr
+/services/ContinuousIntegration/ContinuousIntegration
+/services/registry/registry

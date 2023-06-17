@@ -30,7 +30,9 @@ services:
       - "registry:/var/lib/registry"
     restart: always
   registry_auth:
-    build: ../services/registry
+    build:
+      context: ..
+      dockerfile: Dockerfile.registry
     ports:
       - 8081:8081
     environment:
@@ -38,6 +40,22 @@ services:
       JWT_SECRET: development
     volumes:
       - "../services/registry/certs:/app/certs"
+  continuous_integration:
+    build:
+      context: ..
+      dockerfile: Dockerfile.ContinuousIntegration
+    ports:
+      - 8080:8080
+    environment:
+      DOMAIN: localhost
+      JWT_SECRET: development
+      DOCKER_HOST: local
+      DATABASE_URL: postgres://development:development@db:5432/development?sslmode=disable
+      RUNTIME: sysbox-runc
+      REGISTRY_HOST: "10.0.1.18"
+      REGISTRY_AUTH_HOST: "10.0.1.18"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
 volumes:
   registry:
   db:
