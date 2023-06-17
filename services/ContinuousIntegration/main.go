@@ -87,5 +87,7 @@ func main() {
 
 	r.GET("/file/:fileId", handlers.DownloadFile)
 
+	r.POST("/deleteRepo", handlers.DeleteRepo)
+
 	r.Run()
 }

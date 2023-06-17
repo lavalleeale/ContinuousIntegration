@@ -20,14 +20,25 @@
   >
     Add
   </button>
+  <a class="float-right btn-pill btn-blue mr-1" href="/addRepoGithub">
+    Add From Github
+  </a>
   <h2 class="text-3xl mb-4">Repos</h2>
   <ul>
     {{ range .repos }}
-    <a href="/repo/{{ .ID }}">
-      <div class="paper">
-        <p>{{ .Url }}</p>
-      </div>
-    </a>
+    <div class="paper">
+      <form method="post" action="/deleteRepo">
+        <input type="hidden" name="id" value="{{ .ID }}" />
+        <button
+          class="fa-sharp fa-solid fa-trash float-right text-xl text-white hover:text-red-500 pl-2 cursor-pointer"
+        ></button>
+      </form>
+      <a href="/repo/{{ .ID }}" class="text-white">
+        <div>
+          <p>{{ .Url }}</p>
+        </div>
+      </a>
+    </div>
     {{ end}}
   </ul>
 </div>

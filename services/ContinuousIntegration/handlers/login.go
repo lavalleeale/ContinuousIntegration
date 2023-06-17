@@ -16,7 +16,7 @@ import (
 
 func Login(c *gin.Context) {
 	session := c.MustGet("session").(map[string]string)
-	installId, ok := session["installId"]
+	installId, waitingForInstall := session["installId"]
 	var dat struct {
 		Username string `form:"username"`
 		Password string `form:"password"`
@@ -38,7 +38,7 @@ func Login(c *gin.Context) {
 			return
 		}
 		user = db.User{Username: dat.Username, Password: string(bytes)}
-		if ok {
+		if waitingForInstall {
 			id, err := strconv.ParseInt(installId, 10, 64)
 			if err != nil {
 				// This will never fail since the user cannot alter their own session
@@ -61,7 +61,7 @@ func Login(c *gin.Context) {
 			})
 			return
 		}
-		if ok {
+		if waitingForInstall {
 			id, err := strconv.ParseInt(installId, 10, 64)
 			if err != nil {
 				// This will never fail since the user cannot alter their own session
@@ -74,7 +74,7 @@ func Login(c *gin.Context) {
 
 	lib.SetSession(c, "username", user.Username)
 
-	if ok {
+	if waitingForInstall {
 		c.Redirect(http.StatusFound, "/addRepoGithub")
 	} else {
 		c.Redirect(http.StatusFound, "/")

@@ -86,8 +86,10 @@ func HandleWebhook(c *gin.Context) {
 						title := "ci.json not found!"
 						summary := "ci.json file not found in root of repository"
 						client.Checks.UpdateCheckRun(context.TODO(),
-							*event.Repo.Owner.Login, *event.Repo.Name, *event.CheckRun.ID, github.UpdateCheckRunOptions{
-								Conclusion: &conclusion, Name: "Test", Output: &github.CheckRunOutput{Title: &title, Summary: &summary},
+							*event.Repo.Owner.Login, *event.Repo.Name,
+							*event.CheckRun.ID, github.UpdateCheckRunOptions{
+								Conclusion: &conclusion, Name: "Test",
+								Output: &github.CheckRunOutput{Title: &title, Summary: &summary},
 							})
 						return
 					} else {
@@ -109,8 +111,10 @@ func HandleWebhook(c *gin.Context) {
 					title := "ci.json not valid"
 					summary := err.Error()
 					client.Checks.UpdateCheckRun(context.TODO(),
-						*event.Repo.Owner.Login, *event.Repo.Name, *event.CheckRun.ID, github.UpdateCheckRunOptions{
-							Conclusion: &conclusion, Name: "Test", Output: &github.CheckRunOutput{Title: &title, Summary: &summary},
+						*event.Repo.Owner.Login, *event.Repo.Name,
+						*event.CheckRun.ID, github.UpdateCheckRunOptions{
+							Conclusion: &conclusion, Name: "Test",
+							Output: &github.CheckRunOutput{Title: &title, Summary: &summary},
 						})
 					return
 				}
@@ -143,7 +147,8 @@ func HandleWebhook(c *gin.Context) {
 						detailsUrl = fmt.Sprintf("http://%s/build/%d", c.Request.Host, id)
 					}
 					client.Checks.UpdateCheckRun(context.TODO(),
-						*event.Repo.Owner.Login, *event.Repo.Name, *event.CheckRun.ID, github.UpdateCheckRunOptions{
+						*event.Repo.Owner.Login, *event.Repo.Name,
+						*event.CheckRun.ID, github.UpdateCheckRunOptions{
 							Conclusion: &conclusion, ExternalID: &externalID, DetailsURL: &detailsUrl, Name: "Test",
 						})
 				})
@@ -152,8 +157,10 @@ func HandleWebhook(c *gin.Context) {
 					title := "ci.json not valid"
 					summary := err.Error()
 					client.Checks.UpdateCheckRun(context.TODO(),
-						*event.Repo.Owner.Login, *event.Repo.Name, *event.CheckRun.ID, github.UpdateCheckRunOptions{
-							Conclusion: &conclusion, Name: "Test", Output: &github.CheckRunOutput{Title: &title, Summary: &summary},
+						*event.Repo.Owner.Login, *event.Repo.Name,
+						*event.CheckRun.ID, github.UpdateCheckRunOptions{
+							Conclusion: &conclusion, Name: "Test",
+							Output: &github.CheckRunOutput{Title: &title, Summary: &summary},
 						})
 				} else {
 					status := "in_progress"
@@ -165,7 +172,8 @@ func HandleWebhook(c *gin.Context) {
 						detailsUrl = fmt.Sprintf("http://%s/build/%d", c.Request.Host, build.ID)
 					}
 					client.Checks.UpdateCheckRun(context.TODO(),
-						*event.Repo.Owner.Login, *event.Repo.Name, *event.CheckRun.ID, github.UpdateCheckRunOptions{
+						*event.Repo.Owner.Login, *event.Repo.Name,
+						*event.CheckRun.ID, github.UpdateCheckRunOptions{
 							Status: &status, ExternalID: &externalID, DetailsURL: &detailsUrl, Name: "Test",
 						})
 				}
@@ -177,6 +185,10 @@ func HandleWebhook(c *gin.Context) {
 			// Hack needed because GORM will not update with where clause but is acceptable since ARRAY_REMOVE will only remove given ID
 			db.Db.Model(db.User{}).Where("1 = 1").Update("installation_ids",
 				gorm.Expr("ARRAY_REMOVE(installation_ids, ?)", *event.Installation.ID))
+			db.Db.Model(db.Repo{}).Select("installation_id", "github_repo_id").Where(
+				"installation_id = ?", *event.Installation.ID).Updates(db.Repo{
+				InstallationId: nil, GithubRepoId: nil,
+			})
 		}
 	default:
 		log.Printf("Unknown request %s\n", c.Request.Header["X-Github-Event"])

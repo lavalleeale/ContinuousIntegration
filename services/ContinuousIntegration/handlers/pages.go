@@ -129,6 +129,10 @@ func AddRepoGithhubPage(c *gin.Context) {
 			}
 			repos[v] = installRepos
 		}
+		if len(repos) == 0 {
+			c.Redirect(http.StatusFound, "https://github.com/apps/custom-ci/installations/new")
+			return
+		}
 		c.HTML(http.StatusOK, "addRepoGithub", repos)
 	} else {
 		c.Redirect(http.StatusFound, "/login")

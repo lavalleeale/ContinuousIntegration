@@ -41,4 +41,11 @@ describe("Full Spec", () => {
     cy.contains("go").click();
     cy.contains("/neededFiles/dev/docker-compose.yaml").should("be.visible");
   });
+
+  it("Deletes Repo", () => {
+    cy.login("tester");
+    cy.visit("/");
+    cy.get(".fa-trash").click();
+    cy.contains("sshca").should("not.exist");
+  });
 });

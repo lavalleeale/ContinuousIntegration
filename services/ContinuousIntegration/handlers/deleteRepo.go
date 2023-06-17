@@ -1,15 +1,15 @@
 package handlers
 
 import (
-	"fmt"
 	"net/http"
+	"strconv"
 
 	"github.com/gin-gonic/gin"
 	"github.com/lavalleeale/ContinuousIntegration/services/ContinuousIntegration/db"
 	"github.com/lavalleeale/ContinuousIntegration/services/ContinuousIntegration/lib"
 )
 
-func AddRepo(c *gin.Context) {
+func DeleteRepo(c *gin.Context) {
 	var user db.User
 
 	if !lib.GetUser(c, &user) {
@@ -18,18 +18,18 @@ func AddRepo(c *gin.Context) {
 	}
 
 	var data struct {
-		Url string `form:"url"`
+		Id string `form:"id"`
 	}
 
 	c.ShouldBind(&data)
 
-	repo := db.Repo{Url: data.Url, OrganizationID: user.OrganizationID}
-
-	err := db.Db.Create(&repo).Error
+	repoId, err := strconv.ParseInt(data.Id, 10, 32)
 	if err != nil {
 		c.Redirect(http.StatusFound, "/")
-		return
 	}
 
-	c.Redirect(http.StatusFound, fmt.Sprintf("/repo/%d", repo.ID))
+	repo := db.Repo{ID: uint(repoId)}
+
+	err = db.Db.Delete(&repo).Error
+	c.Redirect(http.StatusFound, "/")
 }

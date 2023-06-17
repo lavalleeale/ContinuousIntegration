@@ -2,6 +2,7 @@ package lib
 
 import (
 	"encoding/json"
+	"net/http"
 	"os"
 
 	"github.com/gin-gonic/gin"
@@ -30,6 +31,7 @@ func SetSession(c *gin.Context, key string, value string) {
 		// We have created map so marshalling it should never fail
 		panic(err)
 	}
+	c.SetSameSite(http.SameSiteLaxMode)
 	c.SetCookie(
 		"session",
 		sessionseal.Seal(os.Getenv("JWT_SECRET"), session),
