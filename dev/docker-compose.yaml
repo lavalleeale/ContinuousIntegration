@@ -36,7 +36,7 @@ services:
     ports:
       - 8081:8081
     environment:
-      PUSH_SECRET: development
+      DATABASE_URL: postgres://development:development@db:5432/development?sslmode=disable
       JWT_SECRET: development
     volumes:
       - "../services/registry/certs:/app/certs"

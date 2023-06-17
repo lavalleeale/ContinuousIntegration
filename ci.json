@@ -39,10 +39,10 @@
       "docker cp /usr/local/share/ca-certificates/registry.crt buildx_buildkit_mybuilder0:/usr/local/share/ca-certificates/registry.crt",
       "docker exec buildx_buildkit_mybuilder0 update-ca-certificates",
       "docker login --username=$DOCKER_USER --password=$DOCKER_PASS $(getent hosts registry | awk '{ print $1 }'):5000",
-      "docker buildx build --tag $(getent hosts registry | awk '{ print $1 }'):5000/alex/base --cache-to=type=registry,ref=$(getent hosts registry | awk '{ print $1 }'):5000/alex/base:CI,mode=max --cache-from=type=registry,ref=$(getent hosts registry | awk '{ print $1 }'):5000/alex/base:CI --push images/base",
-      "docker pull $(getent hosts registry | awk '{ print $1 }'):5000/alex/base",
-      "docker tag $(getent hosts registry | awk '{ print $1 }'):5000/alex/base base",
-      "yarn --cwd services/ContinuousIntegration conc --kill-others --names \"server,cypress\" --success \"command-cypress\" \"./ContinuousIntegration\" \"yarn cypress run -s cypress/e2e/basic.cy.ts\""
+      "docker buildx build --tag base --cache-to=type=registry,ref=$(getent hosts registry | awk '{ print $1 }'):5000/alex/base:CI,mode=max --cache-from=type=registry,ref=$(getent hosts registry | awk '{ print $1 }'):5000/alex/base:CI --load images/base",
+      "yarn --cwd services/ContinuousIntegration conc --kill-others --names \"server,cypress\" --success \"command-cypress\" \"./ContinuousIntegration\" \"yarn cypress run -s cypress/e2e/basic.cy.ts\"",
+      "docker tag base $(getent hosts registry | awk '{ print $1 }'):5000/alex/base",
+      "docker push $(getent hosts registry | awk '{ print $1 }'):5000/alex/base"
     ],
     "needs": [
       "go"

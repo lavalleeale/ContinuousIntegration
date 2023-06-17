@@ -8,7 +8,7 @@ COPY services/ContinuousIntegration/package.json services/ContinuousIntegration/
 
 RUN yarn install --frozen-lockfile
 
-COPY services/ContinuousIntegration/assets ./assets
+COPY services/ContinuousIntegration .
 
 RUN yarn build
 
