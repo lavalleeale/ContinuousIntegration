@@ -11,7 +11,7 @@
     ]
   },
   {
-    "id": "go",
+    "id": "main",
     "image": "base",
     "steps": [
       "cp -a /neededFiles/output services/ContinuousIntegration/assets/output",
@@ -28,27 +28,40 @@
     ]
   },
   {
+    "id": "registry",
+    "image": "base",
+    "steps": [
+      "(dockerd > dockerlog.txt 2>&1 &) && sleep 5",
+      "docker buildx create --driver docker-container --name mybuilder --use --bootstrap",
+      "docker cp /usr/local/share/ca-certificates/registry.crt buildx_buildkit_mybuilder0:/usr/local/share/ca-certificates/registry.crt",
+      "docker exec buildx_buildkit_mybuilder0 update-ca-certificates",
+      "docker login --username=$DOCKER_USER --password=$DOCKER_PASS $REGISTRY",
+      "docker buildx build --tag $REGISTRY/alex/registry --cache-to=type=registry,ref=$REGISTRY/alex/registry:CI,mode=max --cache-from=type=registry,ref=$REGISTRY/alex/registry:CI --push . -f Dockerfile.registry"
+    ]
+  },
+  {
     "id": "test",
     "image": "base",
     "steps": [
       "cp /neededFiles/ContinuousIntegration services/ContinuousIntegration/ContinuousIntegration",
       "(dockerd > dockerlog.txt 2>&1 &)",
-      "echo \"RE9NQUlOPWxvY2FsaG9zdApKV1RfU0VDUkVUPWRldmVsb3BtZW50CkRPQ0tFUl9IT1NUPWxvY2FsCkRBVEFCQVNFX1VSTD1wb3N0Z3JlczovL2RldmVsb3BtZW50OmRldmVsb3BtZW50QHNlcnZpY2U6NTQzMi9kZXZlbG9wbWVudD9zc2xtb2RlPWRpc2FibGUKUlVOVElNRT1ydW5jClJFR0lTVFJZX0hPU1Q9IjEuMS4xLjEiClJFR0lTVFJZX0FVVEhfSE9TVD0iMS4xLjEuMSI=\" | base64 -d > services/ContinuousIntegration/.env",
+      "echo \"RE9NQUlOPWxvY2FsaG9zdApKV1RfU0VDUkVUPWRldmVsb3BtZW50CkRPQ0tFUl9IT1NUPWxvY2FsCkRBVEFCQVNFX1VSTD1wb3N0Z3JlczovL2RldmVsb3BtZW50OmRldmVsb3BtZW50QHNlcnZpY2U6NTQzMi9kZXZlbG9wbWVudD9zc2xtb2RlPWRpc2FibGUKUlVOVElNRT1ydW5jClJFR0lTVFJZX1VSTD0iMS4xLjEuMSI=\" | base64 -d > services/ContinuousIntegration/.env",
       "yarn --cwd services/ContinuousIntegration --immutable",
       "docker buildx create --driver docker-container --name mybuilder --use --bootstrap",
       "docker cp /usr/local/share/ca-certificates/registry.crt buildx_buildkit_mybuilder0:/usr/local/share/ca-certificates/registry.crt",
       "docker exec buildx_buildkit_mybuilder0 update-ca-certificates",
-      "docker login --username=$DOCKER_USER --password=$DOCKER_PASS $(getent hosts registry | awk '{ print $1 }'):5000",
-      "docker buildx build --tag base --cache-to=type=registry,ref=$(getent hosts registry | awk '{ print $1 }'):5000/alex/base:CI,mode=max --cache-from=type=registry,ref=$(getent hosts registry | awk '{ print $1 }'):5000/alex/base:CI --load images/base",
+      "docker login --username=$DOCKER_USER --password=$DOCKER_PASS $REGISTRY",
+      "docker buildx build --tag base --cache-to=type=registry,ref=$REGISTRY/alex/base:CI,mode=max --cache-from=type=registry,ref=$REGISTRY/alex/base:CI --load images/base",
       "yarn --cwd services/ContinuousIntegration conc --kill-others --names \"server,cypress\" --success \"command-cypress\" \"./ContinuousIntegration\" \"yarn cypress run -s cypress/e2e/basic.cy.ts\"",
-      "docker tag base $(getent hosts registry | awk '{ print $1 }'):5000/alex/base",
-      "docker push $(getent hosts registry | awk '{ print $1 }'):5000/alex/base"
+      "docker tag base $REGISTRY/alex/base",
+      "docker push $REGISTRY/alex/base"
     ],
     "needs": [
-      "go"
+      "main",
+      "registry"
     ],
     "neededFiles": [
-      "go:/repo/services/ContinuousIntegration/ContinuousIntegration"
+      "main:/repo/services/ContinuousIntegration/ContinuousIntegration"
     ],
     "service": {
       "image": "postgres",

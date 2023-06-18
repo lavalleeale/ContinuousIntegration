@@ -10,3 +10,6 @@
 **/*.csr
 /services/ContinuousIntegration/ContinuousIntegration
 /services/registry/registry
+**/.cache
+!root_ca.crt
+gitea

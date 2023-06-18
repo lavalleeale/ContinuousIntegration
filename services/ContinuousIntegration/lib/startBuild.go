@@ -142,9 +142,9 @@ func StartBuild(repo db.Repo, buildData BuildData, auth []string, callback func(
 	}
 	go (func() {
 		var wg sync.WaitGroup
-		wg.Add(1)
 		failed := false
 		for _, container := range d.GetRoots() {
+			wg.Add(1)
 			if len(auth) != 0 {
 				repoUrl.User = url.UserPassword(auth[0], auth[1])
 				go BuildContainer(repoUrl.String(), build.ID,

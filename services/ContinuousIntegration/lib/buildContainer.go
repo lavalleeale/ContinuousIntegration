@@ -118,8 +118,11 @@ func BuildContainer(repoUrl string, buildID uint, cont db.Container, organizatio
 
 	dockerAuthData, _ := json.Marshal(dockerAuth)
 
-	mainEnv := []string{"DOCKER_USER=token", fmt.Sprintf("DOCKER_PASS=%s",
-		sessionseal.Seal(os.Getenv("JWT_SECRET"), dockerAuthData))}
+	mainEnv := []string{
+		"DOCKER_USER=token", fmt.Sprintf("DOCKER_PASS=%s",
+			sessionseal.Seal(os.Getenv("JWT_SECRET"), dockerAuthData)),
+		fmt.Sprintf("REGISTRY=%s", os.Getenv("REGISTRY_URL")),
+	}
 	if cont.Environment != nil {
 		mainEnv = append(mainEnv, strings.Split(*cont.Environment, ",")...)
 	}
@@ -132,10 +135,6 @@ func BuildContainer(repoUrl string, buildID uint, cont db.Container, organizatio
 		Labels: map[string]string{"buildId": fmt.Sprint(buildID), "containerId": fmt.Sprint(cont.Id)},
 	}, &container.HostConfig{
 		Runtime: os.Getenv("RUNTIME"),
-		ExtraHosts: []string{
-			fmt.Sprintf("registry:%s", os.Getenv("REGISTRY_HOST")),
-			fmt.Sprintf("auth:%s", os.Getenv("REGISTRY_AUTH_HOST")),
-		},
 	}, &network.NetworkingConfig{
 		EndpointsConfig: map[string]*network.EndpointSettings{
 			networkResp.ID: {
@@ -257,7 +256,7 @@ func BuildContainer(repoUrl string, buildID uint, cont db.Container, organizatio
 			"To.EdgesToward.From").Preload("To.NeededFiles").Preload("To.UploadedFiles").Find(&edges)
 		for _, edge := range edges {
 			for index, from := range edge.To.EdgesToward {
-				if from.From.Code == nil {
+				if from.From.Code == nil || *from.From.Code != 0 {
 					break
 				}
 				if index == len(edge.To.EdgesToward)-1 {
