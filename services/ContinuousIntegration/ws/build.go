@@ -65,15 +65,22 @@ func HandleBuildWs(c *gin.Context) {
 
 	left := 0
 
-	for index, cont := range build.Containers {
+	for _, cont := range build.Containers {
 		if cont.Code == nil {
 			left++
-		} else if left == 0 && index == len(build.Containers)-1 {
-			socket.WriteJSON(gin.H{"error": "build finished"})
-			socket.WriteControl(websocket.CloseMessage,
-				websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""), time.Now().Add(time.Second))
-			return
+		} else if left == 0 {
+			socket.WriteJSON(gin.H{
+				"type": "die", "id": cont.Id,
+				"code": strconv.FormatInt(int64(*cont.Code), 10),
+			})
 		}
+	}
+
+	if left == 0 {
+		socket.WriteJSON(gin.H{"error": "build finished"})
+		socket.WriteControl(websocket.CloseMessage,
+			websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""), time.Now().Add(time.Second))
+		return
 	}
 
 	labelPair := filters.KeyValuePair{

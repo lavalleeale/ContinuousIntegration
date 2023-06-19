@@ -4,7 +4,6 @@ version: "3.1"
 services:
   db:
     image: postgres
-    restart: always
     environment:
       POSTGRES_PASSWORD: development
       POSTGRES_USER: development
@@ -13,33 +12,34 @@ services:
       - 5432:5432
     volumes:
       - "db:/var/lib/postgresql/data"
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U postgres" ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
   registry:
-    image: registry:2
+    image: alex95712/registry
     ports:
-      - 5000:5000
-    environment:
-      - REGISTRY_AUTH=token
-      - REGISTRY_AUTH_TOKEN_REALM=https://auth:8081/auth
-      - REGISTRY_AUTH_TOKEN_SERVICE=Authentication
-      - REGISTRY_AUTH_TOKEN_ISSUER=Sample Issuer
-      - REGISTRY_AUTH_TOKEN_ROOTCERTBUNDLE=/mnt/local/certs/auth.crt
-      - REGISTRY_HTTP_TLS_CERTIFICATE=/mnt/local/certs/registry.crt
-      - REGISTRY_HTTP_TLS_KEY=/mnt/local/certs/registry.key
+      - 10.0.2.1:443:5000
     volumes:
-      - "../services/registry/certs:/mnt/local/certs"
+      - "./CA.pem:/certs/root.crt"
+      - "./registry-config.yml:/etc/docker/registry/config.yml"
       - "registry:/var/lib/registry"
-    restart: always
   registry_auth:
     build:
       context: ..
       dockerfile: Dockerfile.registry
     ports:
-      - 8081:8081
+      - 10.0.2.2:443:443
     environment:
       DATABASE_URL: postgres://development:development@db:5432/development?sslmode=disable
       JWT_SECRET: development
-    volumes:
-      - "../services/registry/certs:/app/certs"
+      HOST: auth.dev.lan
+      DIRECTORY_URL: https://step.lan/acme/ACME/directory
+      ADDRESS: ":https"
+    depends_on:
+      db:
+        condition: service_healthy
   continuous_integration:
     build:
       context: ..
@@ -52,10 +52,26 @@ services:
       DOCKER_HOST: local
       DATABASE_URL: postgres://development:development@db:5432/development?sslmode=disable
       RUNTIME: sysbox-runc
-      REGISTRY_HOST: "10.0.1.18"
-      REGISTRY_AUTH_HOST: "10.0.1.18"
+      REGISTRY_URL: registry.dev.lan
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
+    depends_on:
+      db:
+        condition: service_healthy
+  gitea:
+    image: gitea/gitea
+    container_name: gitea
+    environment:
+      - USER_UID=1000
+      - USER_GID=1000
+    restart: always
+    volumes:
+      - ./gitea:/data
+      - /etc/timezone:/etc/timezone:ro
+      - /etc/localtime:/etc/localtime:ro
+    ports:
+      - "3000:3000"
+      - "222:22"
 volumes:
   registry:
   db:

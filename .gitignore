@@ -10,3 +10,5 @@ videos
 *.csr
 /services/ContinuousIntegration/ContinuousIntegration
 /services/registry/registry
+.cache
+gitea

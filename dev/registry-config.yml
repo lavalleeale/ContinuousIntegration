@@ -1,0 +1,45 @@
+version: 0.1
+log:
+  fields:
+    service: registry
+storage:
+  cache:
+    blobdescriptor: inmemory
+  filesystem:
+    rootdirectory: /var/lib/registry
+  delete:
+    enabled: true
+  maintenance:
+    uploadpurging:
+      enabled: true
+      age: 168h
+      interval: 24h
+      dryrun: false
+http:
+  addr: :5000
+  headers:
+    X-Content-Type-Options: [nosniff]
+  tls:
+    letsencrypt:
+      cachefile: /cache
+      email: registry@lavallee.one
+      hosts: ["registry.dev.lan"]
+      directoryurl: "https://step.lan/acme/ACME/directory"
+auth:
+  token:
+    realm: https://auth.dev.lan/auth
+    service: Authentication
+    issuer: ci-issuer
+    rootcertbundle: /certs/root.crt
+validation:
+  enabled: true
+  disabled: false
+  manifests:
+    urls:
+      allow: [".*"]
+      deny: []
+health:
+  storagedriver:
+    enabled: true
+    interval: 10s
+    threshold: 3

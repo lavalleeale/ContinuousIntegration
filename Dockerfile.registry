@@ -24,6 +24,9 @@ ENV APP_ENV=PRODUCTION
 
 COPY --from=builder /build .
 
+ADD root_ca.crt /usr/local/share/ca-certificates/registry.crt
+RUN chmod 644 /usr/local/share/ca-certificates/registry.crt && update-ca-certificates
+
 EXPOSE 8081
 
 CMD ["/app/build"]
