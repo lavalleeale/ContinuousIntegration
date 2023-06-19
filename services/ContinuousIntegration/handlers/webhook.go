@@ -76,7 +76,7 @@ func HandleWebhook(c *gin.Context) {
 				}
 			} else if *event.Action == "created" {
 				content, err := client.Repositories.DownloadContents(context.TODO(),
-					*event.Repo.Owner.Login, *event.Repo.Name, "/ci.json", &github.RepositoryContentGetOptions{
+					*event.Repo.Owner.Login, *event.Repo.Name, "ci.json", &github.RepositoryContentGetOptions{
 						Ref: *event.CheckRun.HeadSHA,
 					})
 				if err != nil {

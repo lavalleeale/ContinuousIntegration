@@ -36,6 +36,7 @@
       "docker cp /usr/local/share/ca-certificates/registry.crt buildx_buildkit_mybuilder0:/usr/local/share/ca-certificates/registry.crt",
       "docker exec buildx_buildkit_mybuilder0 update-ca-certificates",
       "docker login --username=$DOCKER_USER --password=$DOCKER_PASS $REGISTRY",
+      "cp /usr/local/share/ca-certificates/registry.crt root_ca.crt",
       "docker buildx build --tag $REGISTRY/alex/registry --cache-to=type=registry,ref=$REGISTRY/alex/registry:CI,mode=max --cache-from=type=registry,ref=$REGISTRY/alex/registry:CI --push . -f Dockerfile.registry"
     ]
   },
