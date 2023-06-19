@@ -9,7 +9,7 @@
   {{ range .Containers }}
   <div class="paper min-w-[10%] inline-block align-top">
     <a
-      onclick="window.location.href = '/build/{{ .BuildID }}/container/{{ .Id }}'"
+      href="/build/{{ .BuildID }}/container/{{ .Id }}"
       class="text-white inline-block w-full cursor-pointer"
     >
       {{ .Name }} {{ $length := len .Log }} {{ if eq $length 0 }}

@@ -21,7 +21,35 @@ import (
 	"github.com/lavalleeale/ContinuousIntegration/lib/db"
 	sessionseal "github.com/lavalleeale/SessionSeal"
 	"golang.org/x/exp/slices"
+	"gorm.io/gorm"
 )
+
+func failEarly(buildID uint, cont *db.Container, containers []container.CreateResponse,
+	network types.NetworkCreateResponse, reason string, mainContainer *container.CreateResponse,
+) {
+	for _, container := range containers {
+		if container.ID != "" {
+			DockerCli.ContainerRemove(context.TODO(), container.ID, types.ContainerRemoveOptions{
+				Force: true,
+			})
+		}
+	}
+	if mainContainer.ID != "" {
+		DockerCli.ContainerRemove(context.TODO(), mainContainer.ID, types.ContainerRemoveOptions{
+			Force: true,
+		})
+	}
+	DockerCli.NetworkRemove(context.TODO(), network.ID)
+	code := 255
+	db.Db.Model(&cont).Updates(map[string]interface{}{
+		"log": gorm.Expr("log || ?", reason), "code": &code,
+	})
+	err := Rdb.Publish(context.TODO(), fmt.Sprintf(
+		"build.%d.container.%d.die", cont.BuildID, cont.Id), code).Err()
+	if err != nil {
+		panic(err)
+	}
+}
 
 func BuildContainer(repoUrl string, buildID uint, cont db.Container, organizationId string, wg *sync.WaitGroup, failed *bool) {
 	defer wg.Done()
@@ -92,25 +120,8 @@ func BuildContainer(repoUrl string, buildID uint, cont db.Container, organizatio
 				log.Println(err)
 				close()
 				if errors.Is(err, context.DeadlineExceeded) {
-					code := 255
-					db.Db.Model(&cont).Updates(db.Container{
-						Log: fmt.Sprintf("Service container %s failed to be healthy", v.Name), Code: &code,
-					})
-					for k, serviceContainerResponse := range serviceContainerResponses {
-						if k == i {
-							break
-						}
-						DockerCli.ContainerRemove(context.TODO(),
-							serviceContainerResponse.ID, types.ContainerRemoveOptions{
-								Force: true,
-							})
-					}
-					err = Rdb.Publish(context.TODO(), fmt.Sprintf(
-						"build.%d.container.%d.die", build.ID, cont.Id), &code).Err()
-					if err != nil {
-						panic(err)
-					}
-					*failed = true
+					failEarly(buildID, &cont, serviceContainerResponses, networkResp,
+						fmt.Sprintf("Service container %s failed to be healthy", v.Name), &container.CreateResponse{})
 					return
 				}
 			case msg := <-msgs:
@@ -221,11 +232,6 @@ test:
 		panic(err)
 	}
 
-	err = Rdb.Publish(context.TODO(), fmt.Sprintf("build.%d.container.%d.die", build.ID, cont.Id), t.State.ExitCode).Err()
-	if err != nil {
-		panic(err)
-	}
-
 	if logStringBuilder.Len() > 100000 {
 		db.Db.Model(&cont).Updates(db.Container{Log: logStringBuilder.String()[0:99900] +
 			"\nTruncated due to length over 100k chars", Code: &t.State.ExitCode})
@@ -235,9 +241,8 @@ test:
 	for _, file := range cont.UploadedFiles {
 		reader, _, err := DockerCli.CopyFromContainer(context.TODO(), mainContainerResponse.ID, file.Path)
 		if err != nil {
-			log.Println(err)
-			db.Db.Model(&cont).Update("log", fmt.Sprintf(
-				"%s\nFailed to upload file (%s)", cont.Log, file.Path))
+			failEarly(buildID, &cont, serviceContainerResponses, networkResp,
+				fmt.Sprintf("Failed to upload file (%s)", file.Path), &mainContainerResponse)
 			return
 		}
 		defer reader.Close()
@@ -256,6 +261,11 @@ test:
 		})
 	}
 	DockerCli.NetworkRemove(context.TODO(), networkResp.ID)
+
+	err = Rdb.Publish(context.TODO(), fmt.Sprintf("build.%d.container.%d.die", build.ID, cont.Id), t.State.ExitCode).Err()
+	if err != nil {
+		panic(err)
+	}
 
 	if t.State.ExitCode == 0 {
 		var edges []db.ContainerGraphEdge
