@@ -3,7 +3,7 @@ import ReconnectingWebSocket from "reconnecting-websocket";
 
 window.onload = () => {
   var left =
-    document.querySelectorAll("[id]").length -
+    document.querySelectorAll(".bg-yellow-500,.bg-red-500").length -
     document.querySelectorAll(".bg-green-500").length;
   const ws = new ReconnectingWebSocket(
     `${window.location.protocol.replace("http","ws")}//${window.location.host}/build/${window.location.href.substring(
@@ -29,6 +29,7 @@ window.onload = () => {
         left--;
         if (left === 0) {
           ws.close();
+          document.getElementById("status").innerText = `Status : ${document.querySelectorAll(".bg-red-500").length > 0 ? "failure" : "success"}`;
         }
       } else {
         container.classList.add("bg-red-500");

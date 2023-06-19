@@ -2,11 +2,11 @@ package ws
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"log"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/docker/docker/api/types"
@@ -55,7 +55,7 @@ func HandleBuildWs(c *gin.Context) {
 	}
 
 	build := db.Build{ID: uint(numId), Repo: db.Repo{OrganizationID: user.OrganizationID}}
-	err = db.Db.Preload("Containers").Preload("Repo").Where(&build, "id", "Repo.OrganizationID").First(&build).Error
+	err = db.Db.Preload("Containers").Preload("Repo").First(&build).Error
 
 	if err != nil || build.Repo.OrganizationID != user.OrganizationID {
 		socket.WriteControl(websocket.CloseMessage,
@@ -83,33 +83,11 @@ func HandleBuildWs(c *gin.Context) {
 		return
 	}
 
-	labelPair := filters.KeyValuePair{
-		Key: "label",
-		Value: fmt.Sprintf(
-			"buildId=%s",
-			c.Param("buildId"),
-		),
-	}
-
-	filterPairs := filters.NewArgs(
-		labelPair,
-		filters.KeyValuePair{
-			Key:   "event",
-			Value: "die",
-		},
-		filters.KeyValuePair{
-			Key:   "event",
-			Value: "create",
-		},
-	)
-	ctx, close := context.WithTimeout(context.TODO(), time.Minute*30)
-
-	msgs, errs := lib.DockerCli.Events(ctx, types.EventsOptions{
-		Filters: filterPairs,
-	})
-
 	containers, err := lib.DockerCli.ContainerList(context.TODO(), types.ContainerListOptions{
-		Filters: filters.NewArgs(labelPair),
+		Filters: filters.NewArgs(filters.KeyValuePair{
+			Key:   "label",
+			Value: fmt.Sprintf("buildId=%s", c.Param("buildId")),
+		}),
 	})
 	if err != nil {
 		// Never expect docker to error
@@ -119,36 +97,33 @@ func HandleBuildWs(c *gin.Context) {
 		socket.WriteJSON(gin.H{"type": "create", "id": cont.Labels["containerId"]})
 	}
 
+	pubsub := lib.Rdb.PSubscribe(context.TODO(), fmt.Sprintf("build.%d.*", build.ID))
+
+	defer pubsub.Close()
+
+	ch := pubsub.Channel()
+
 outer:
-	for {
-		select {
-		case err := <-errs:
-			log.Println(err)
-			close()
-			if errors.Is(err, context.DeadlineExceeded) {
-				socket.WriteControl(websocket.CloseMessage,
-					websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""), time.Now().Add(time.Second))
-				return
+	for msg := range ch {
+		channel := strings.Split(msg.Channel, ".")
+		switch channel[4] {
+		case "die":
+			left--
+			socket.WriteJSON(gin.H{
+				"type": "die", "id": channel[3],
+				"code": msg.Payload,
+			})
+			if left == 0 {
+				break outer
 			}
-		case msg := <-msgs:
-			if msg.Action == "die" {
-				socket.WriteJSON(gin.H{
-					"type": "die", "id": msg.Actor.Attributes["containerId"],
-					"code": msg.Actor.Attributes["exitCode"],
-				})
-				left--
-				if left == 0 {
-					close()
-					break outer
-				}
-			} else {
-				socket.WriteJSON(gin.H{
-					"type": "create",
-					"id":   msg.Actor.Attributes["containerId"],
-				})
-			}
+		case "log":
+		default:
+			socket.WriteJSON(gin.H{"type": channel[4], "id": channel[3]})
 		}
 	}
+
+	socket.WriteJSON(gin.H{"type": "finished"})
+
 	socket.WriteControl(websocket.CloseMessage,
 		websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""), time.Now().Add(time.Second))
 }

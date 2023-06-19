@@ -164,66 +164,60 @@ func BuildContainer(repoUrl string, buildID uint, cont db.Container, organizatio
 		// Never expect docker to error
 		panic(err)
 	}
-	logString := ""
-	statusCh, errCh := DockerCli.ContainerWait(context.TODO(), mainContainerResponse.ID, container.WaitConditionNextExit)
-	select {
-	case err := <-errCh:
-		if err != nil {
-			// Never expect docker to error
-			panic(err)
-		}
-	case <-statusCh:
-	}
 
-	logs, err := DockerCli.ContainerLogs(context.TODO(), mainContainerResponse.ID, types.ContainerLogsOptions{
-		ShowStdout: true, ShowStderr: true,
+	var logStringBuilder strings.Builder
+
+	response, err := DockerCli.ContainerAttach(context.TODO(), mainContainerResponse.ID, types.ContainerAttachOptions{
+		Stream: true, Stdout: true, Logs: true, Stderr: true,
 	})
 	if err != nil {
 		// Never expect docker to error
 		panic(err)
 	}
+
+	defer response.Close()
+
+	Rdb.Publish(context.TODO(), fmt.Sprintf("build.%d.container.%d.create", build.ID, cont.Id), "")
+
+test:
 	for {
 		p := make([]byte, 1)
-
-		_, err = logs.Read(p)
+		_, err := response.Reader.Read(p)
+		response.Reader.Discard(3)
+		var length uint32
+		binary.Read(response.Reader, binary.BigEndian, &length)
 		if err != nil {
 			if err == io.EOF {
-				break
-			}
-			// Never expect docker to error
-			panic(err)
-		}
-
-		_, err = logs.Read(make([]byte, 3))
-		if err != nil {
-			// Never expect docker to error
-			panic(err)
-		}
-
-		var length int32
-		binary.Read(logs, binary.BigEndian, &length)
-		if err != nil {
-			if err == io.EOF {
-				break
+				break test
 			}
 			log.Println(err)
 			os.Exit(1)
 		}
 		p = make([]byte, length)
-		n, _ := logs.Read(p)
-		logString += string(p[:n])
+		n, _ := response.Reader.Read(p)
+		logStringBuilder.Write(p[:n])
+		err = Rdb.Publish(context.TODO(), fmt.Sprintf("build.%d.container.%d.log", build.ID, cont.Id), p[:n]).Err()
+		if err != nil {
+			panic(err)
+		}
 	}
+
 	t, err := DockerCli.ContainerInspect(context.TODO(), mainContainerResponse.ID)
 	if err != nil {
 		// Never expect docker to error
 		panic(err)
 	}
 
-	if len(logString) > 100000 {
-		db.Db.Model(&cont).Updates(db.Container{Log: logString[0:99900] +
+	err = Rdb.Publish(context.TODO(), fmt.Sprintf("build.%d.container.%d.die", build.ID, cont.Id), t.State.ExitCode).Err()
+	if err != nil {
+		panic(err)
+	}
+
+	if logStringBuilder.Len() > 100000 {
+		db.Db.Model(&cont).Updates(db.Container{Log: logStringBuilder.String()[0:99900] +
 			"\nTruncated due to length over 100k chars", Code: &t.State.ExitCode})
 	} else {
-		db.Db.Model(&cont).Updates(db.Container{Log: logString, Code: &t.State.ExitCode})
+		db.Db.Model(&cont).Updates(db.Container{Log: logStringBuilder.String(), Code: &t.State.ExitCode})
 	}
 	for _, file := range cont.UploadedFiles {
 		reader, _, err := DockerCli.CopyFromContainer(context.TODO(), mainContainerResponse.ID, file.Path)

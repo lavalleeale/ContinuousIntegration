@@ -1,6 +1,7 @@
 package lib
 
 import (
+	"context"
 	"fmt"
 	"net/url"
 	"strings"
@@ -29,7 +30,7 @@ type BuildData struct {
 	} `json:"containers"`
 }
 
-func StartBuild(repo db.Repo, buildData BuildData, auth []string, callback func(uint, bool)) (db.Build, error) {
+func StartBuild(repo db.Repo, buildData BuildData, auth []string) (db.Build, error) {
 	build := db.Build{RepoID: repo.ID, Containers: make([]db.Container,
 		len(buildData.Containers)), GitConfig: ""}
 
@@ -154,8 +155,14 @@ func StartBuild(repo db.Repo, buildData BuildData, auth []string, callback func(
 			}
 		}
 		wg.Wait()
-		if callback != nil {
-			callback(build.ID, failed)
+		if failed {
+			db.Db.Model(&build).Update("status", "failure")
+		} else {
+			db.Db.Model(&build).Update("status", "success")
+		}
+		err = Rdb.Publish(context.TODO(), fmt.Sprintf("build.%d", build.ID), build.Status).Err()
+		if err != nil {
+			panic(err)
 		}
 	})()
 	return build, nil

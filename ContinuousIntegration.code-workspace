@@ -18,9 +18,28 @@
   ],
   "settings": {
     "remote.SSH.defaultForwardedPorts": [
-      { "localPort": 8080, "remotePort": 8080, "name": "Server" },
-      { "localPort": 5000, "remotePort": 5000, "name": "Registry" },
-      { "localPort": 8081, "remotePort": 8081, "name": "Registry Auth" }
-    ]
-  }
+      {
+        "localPort": 8080,
+        "remotePort": 8080,
+        "name": "Server"
+      },
+      {
+        "localPort": 5000,
+        "remotePort": 5000,
+        "name": "Registry"
+      },
+      {
+        "localPort": 8081,
+        "remotePort": 8081,
+        "name": "Registry Auth"
+      }
+    ],
+    "go.useLanguageServer": true,
+    "gopls": {
+      "formatting.gofumpt": true
+    },
+    "go.toolsEnvVars": {
+      "GOFUMPT_SPLIT_LONG_LINES": "on"
+    },
+  },
 }

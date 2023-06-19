@@ -62,13 +62,7 @@ func StartBuild(c *gin.Context) {
 		authData = []string{"x-access-token", token}
 	}
 
-	build, err := lib.StartBuild(repo, buildData, authData, func(id uint, failed bool) {
-		if failed {
-			db.Db.Model(db.Build{ID: id}).Update("status", "failed")
-		} else {
-			db.Db.Model(db.Build{ID: id}).Update("status", "succeeded")
-		}
-	})
+	build, err := lib.StartBuild(repo, buildData, authData)
 	if err != nil {
 		c.Redirect(http.StatusFound, "/")
 	}

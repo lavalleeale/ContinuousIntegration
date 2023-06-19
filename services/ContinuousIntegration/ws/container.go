@@ -2,18 +2,12 @@ package ws
 
 import (
 	"context"
-	"encoding/binary"
-	"errors"
 	"fmt"
-	"io"
 	"log"
-	"os"
 	"strconv"
+	"strings"
 	"time"
 
-	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/api/types/container"
-	"github.com/docker/docker/api/types/filters"
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
 	"github.com/lavalleeale/ContinuousIntegration/lib/db"
@@ -67,107 +61,19 @@ func HandleContainerWs(c *gin.Context) {
 		return
 	}
 
-	go AttachContainer(socket, c.Param("buildId"), c.Param("containerId"))
-}
+	pubsub := lib.Rdb.PSubscribe(context.TODO(), fmt.Sprintf("build.%s.container.%s.*",
+		c.Param("buildId"), c.Param("containerId")))
+	defer pubsub.Close()
 
-func AttachContainer(socket *websocket.Conn, BuildID string, ContainerID string) {
-	filter := filters.NewArgs(
-		filters.KeyValuePair{
-			Key: "label",
-			Value: fmt.Sprintf("buildId=%s",
-				BuildID,
-			),
-		},
-		filters.KeyValuePair{
-			Key:   "label",
-			Value: fmt.Sprintf("containerId=%s", ContainerID),
-		},
-	)
-	containers, err := lib.DockerCli.ContainerList(
-		context.TODO(),
-		types.ContainerListOptions{
-			All:     true,
-			Size:    true,
-			Filters: filter,
-		},
-	)
-
-	var containerId string
-
-	if err != nil {
-		log.Println(err)
-		socket.WriteJSON(gin.H{"error": "build not found"})
-		return
-	} else if len(containers) == 0 {
-		socket.WriteJSON(gin.H{"type": "log", "log": "Waiting for container to start...\n"})
-		socket.WriteJSON(gin.H{"type": "code", "code": "Waiting"})
-		ctx, close := context.WithTimeout(context.TODO(), time.Second*90)
-
-		filter.Add("event", "start")
-		msgs, errs := lib.DockerCli.Events(ctx, types.EventsOptions{Filters: filter})
-
-	outer:
-		for {
-			select {
-			case err := <-errs:
-				log.Println(err)
-				close()
-				if errors.Is(err, context.DeadlineExceeded) {
-					socket.WriteJSON(gin.H{"type": "log", "log": "Container failed to start in time, please refresh"})
-					socket.WriteControl(websocket.CloseMessage, []byte{}, time.Now().Add(time.Second))
-				}
-				return
-			case msg := <-msgs:
-				containerId = msg.Actor.ID
-				close()
-				break outer
-			}
+	ch := pubsub.Channel()
+outer:
+	for msg := range ch {
+		switch strings.Split(msg.Channel, ".")[4] {
+		case "log":
+			socket.WriteJSON(gin.H{"type": "log", "log": msg.Payload})
+		case "die":
+			socket.WriteJSON(gin.H{"type": "code", "code": msg.Payload})
+			break outer
 		}
-	} else {
-		containerId = containers[0].ID
 	}
-
-	response, err := lib.DockerCli.ContainerAttach(context.TODO(), containerId, types.ContainerAttachOptions{
-		Stream: true, Stdout: true, Logs: true, Stderr: true,
-	})
-	if err != nil {
-		log.Println(err)
-		socket.WriteJSON(gin.H{"error": "attach failed"})
-		return
-	}
-
-	defer response.Close()
-
-	socket.WriteJSON(gin.H{"type": "log", "log": "Container Started!\n"})
-
-	for {
-		p := make([]byte, 1)
-		_, err := response.Reader.Read(p)
-		response.Reader.Discard(3)
-		var length uint32
-		binary.Read(response.Reader, binary.BigEndian, &length)
-		if err != nil {
-			if err == io.EOF {
-				break
-			}
-			log.Println(err)
-			os.Exit(1)
-		}
-		p = make([]byte, length)
-		n, _ := response.Reader.Read(p)
-		socket.WriteJSON(gin.H{"type": "log", "log": string(p[:n])})
-	}
-
-	statusCh, errCh := lib.DockerCli.ContainerWait(context.TODO(), containerId, container.WaitConditionNextExit)
-	select {
-	case err := <-errCh:
-		if err != nil {
-			// Never expect docker to error
-			panic(err)
-		}
-	case comp := <-statusCh:
-		socket.WriteJSON(gin.H{"type": "code", "code": comp.StatusCode})
-	}
-
-	socket.WriteControl(websocket.CloseMessage, []byte{}, time.Now().Add(time.Second))
 }

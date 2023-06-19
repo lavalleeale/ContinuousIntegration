@@ -130,27 +130,6 @@ func HandleWebhook(c *gin.Context) {
 				}
 				build, err := lib.StartBuild(repo, buildData, []string{
 					"x-access-token", token,
-				}, func(id uint, failed bool) {
-					var conclusion string
-					if failed {
-						db.Db.Model(db.Build{ID: id}).Update("status", "failed")
-						conclusion = "failure"
-					} else {
-						db.Db.Model(db.Build{ID: id}).Update("status", "succeeded")
-						conclusion = "success"
-					}
-					externalID := strconv.FormatInt(int64(id), 10)
-					var detailsUrl string
-					if os.Getenv("APP_ENV") == "production" {
-						detailsUrl = fmt.Sprintf("https://%s/build/%d", c.Request.Host, id)
-					} else {
-						detailsUrl = fmt.Sprintf("http://%s/build/%d", c.Request.Host, id)
-					}
-					client.Checks.UpdateCheckRun(context.TODO(),
-						*event.Repo.Owner.Login, *event.Repo.Name,
-						*event.CheckRun.ID, github.UpdateCheckRunOptions{
-							Conclusion: &conclusion, ExternalID: &externalID, DetailsURL: &detailsUrl, Name: "Test",
-						})
 				})
 				if err != nil {
 					conclusion := "failure"
@@ -177,6 +156,26 @@ func HandleWebhook(c *gin.Context) {
 							Status: &status, ExternalID: &externalID, DetailsURL: &detailsUrl, Name: "Test",
 						})
 				}
+				pubsub := lib.Rdb.Subscribe(context.TODO(), fmt.Sprintf("build.%d", build.ID))
+
+				defer pubsub.Close()
+
+				ch := pubsub.Channel()
+
+				msg := <-ch
+
+				externalID := strconv.FormatUint(uint64(build.ID), 10)
+				var detailsUrl string
+				if os.Getenv("APP_ENV") == "production" {
+					detailsUrl = fmt.Sprintf("https://%s/build/%d", c.Request.Host, build.ID)
+				} else {
+					detailsUrl = fmt.Sprintf("http://%s/build/%d", c.Request.Host, build.ID)
+				}
+				client.Checks.UpdateCheckRun(context.TODO(),
+					*event.Repo.Owner.Login, *event.Repo.Name,
+					*event.CheckRun.ID, github.UpdateCheckRunOptions{
+						Conclusion: &msg.Payload, ExternalID: &externalID, DetailsURL: &detailsUrl, Name: "Test",
+					})
 			}
 		}
 	case *github.InstallationEvent:

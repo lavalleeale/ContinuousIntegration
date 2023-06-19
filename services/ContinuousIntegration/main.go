@@ -42,6 +42,8 @@ func main() {
 
 	lib.StartGithubClient()
 
+	lib.StartRedisClient()
+
 	serverRoot, err := fs.Sub(assetsFS, "assets/output")
 	if err != nil {
 		log.Fatal(err)

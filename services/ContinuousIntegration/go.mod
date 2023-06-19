@@ -7,12 +7,12 @@ require (
 	github.com/docker/docker v24.0.2+incompatible
 	github.com/google/go-github v17.0.0+incompatible
 	github.com/google/uuid v1.3.0
+	github.com/lavalleeale/ContinuousIntegration/lib/auth v1.0.0
+	github.com/lavalleeale/ContinuousIntegration/lib/db v1.0.0
 	github.com/lavalleeale/SessionSeal v0.0.0-20230616163435-35be5f28bfa5
 	golang.org/x/crypto v0.10.0
 	gorm.io/driver/postgres v1.5.2
 	gorm.io/gorm v1.25.1
-	github.com/lavalleeale/ContinuousIntegration/lib/db v1.0.0
-	github.com/lavalleeale/ContinuousIntegration/lib/auth v1.0.0
 )
 
 replace github.com/lavalleeale/ContinuousIntegration/lib/db => ../../lib/db
@@ -21,8 +21,10 @@ replace github.com/lavalleeale/ContinuousIntegration/lib/auth => ../../lib/auth
 
 require (
 	github.com/bytedance/sonic v1.9.1 // indirect
+	github.com/cespare/xxhash/v2 v2.2.0 // indirect
 	github.com/chenzhuoyu/base64x v0.0.0-20221115062448-fe3a3abad311 // indirect
 	github.com/dgrijalva/jwt-go v3.2.0+incompatible // indirect
+	github.com/dgryski/go-rendezvous v0.0.0-20200823014737-9f7001d12a5f // indirect
 	github.com/emirpasic/gods v1.18.1 // indirect
 	github.com/gabriel-vasile/mimetype v1.4.2 // indirect
 	github.com/gin-contrib/sse v0.1.0 // indirect
@@ -75,6 +77,7 @@ require (
 	github.com/opencontainers/go-digest v1.0.0 // indirect
 	github.com/opencontainers/image-spec v1.0.2 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
+	github.com/redis/go-redis/v9 v9.0.5
 	golang.org/x/exp v0.0.0-20230522175609-2e198f4a06a1
 	golang.org/x/net v0.11.0 // indirect
 	golang.org/x/oauth2 v0.9.0
