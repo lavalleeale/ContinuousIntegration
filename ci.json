@@ -46,7 +46,6 @@
     "steps": [
       "cp /neededFiles/ContinuousIntegration services/ContinuousIntegration/ContinuousIntegration",
       "(dockerd > dockerlog.txt 2>&1 &)",
-      "echo \"RE9NQUlOPWxvY2FsaG9zdApKV1RfU0VDUkVUPWRldmVsb3BtZW50CkRPQ0tFUl9IT1NUPWxvY2FsCkRBVEFCQVNFX1VSTD1wb3N0Z3JlczovL2RldmVsb3BtZW50OmRldmVsb3BtZW50QHNlcnZpY2U6NTQzMi9kZXZlbG9wbWVudD9zc2xtb2RlPWRpc2FibGUKUlVOVElNRT1ydW5jClJFR0lTVFJZX1VSTD0iMS4xLjEuMSI=\" | base64 -d > services/ContinuousIntegration/.env",
       "yarn --cwd services/ContinuousIntegration --immutable",
       "docker buildx create --driver docker-container --name mybuilder --use --bootstrap",
       "docker cp /usr/local/share/ca-certificates/registry.crt buildx_buildkit_mybuilder0:/usr/local/share/ca-certificates/registry.crt",
@@ -57,6 +56,15 @@
       "docker tag base $REGISTRY/alex/base",
       "docker push $REGISTRY/alex/base"
     ],
+    "environment": {
+      "DOMAIN": "localhost",
+      "JWT_SECRET": "development",
+      "DOCKER_HOST": "unix:///var/run/docker.sock",
+      "DATABASE_URL": "postgres://development:development@db:5432/development?sslmode=disable",
+      "REDIS_URL": "redis://redis:6379",
+      "RUNTIME": "runc",
+      "REGISTRY_URL": "1.1.1.1"
+    },
     "needs": [
       "main",
       "registry"
@@ -64,20 +72,20 @@
     "neededFiles": [
       "main:/repo/services/ContinuousIntegration/ContinuousIntegration"
     ],
-    "service": {
-      "image": "postgres",
-      "healthcheck": "pg_isready",
-      "environment": [
-        {
-          "POSTGRES_PASSWORD": "development"
-        },
-        {
-          "POSTGRES_USER": "development"
-        },
-        {
+    "services": {
+      "db": {
+        "image": "postgres",
+        "healthcheck": "pg_isready",
+        "environment": {
+          "POSTGRES_PASSWORD": "development",
+          "POSTGRES_USER": "development",
           "POSTGRES_DB": "development"
         }
-      ]
+      },
+      "redis": {
+        "image": "redis",
+        "healthcheck": "redis-cli ping"
+      }
     }
   }
 ]

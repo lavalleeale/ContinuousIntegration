@@ -14,19 +14,19 @@ import (
 type BuildData struct {
 	GitConfig  *string `json:"gitConfig"`
 	Containers []struct {
-		ID          string               `json:"id"`
-		Steps       []string             `json:"steps"`
-		Image       string               `json:"image"`
-		Environment *[]map[string]string `json:"environment,omitempty"`
-		Needs       *[]string            `json:"needs,omitempty"`
-		NeededFiles *[]string            `json:"neededFiles,omitempty"`
-		Uploads     *[]string            `json:"uploads,omitempty"`
-		Service     *struct {
-			Steps       *[]string            `json:"steps,omitempty"`
-			Environment *[]map[string]string `json:"environment,omitempty"`
-			Image       string               `json:"image"`
-			Healthcheck string               `json:"healthcheck"`
-		} `json:"service,omitempty"`
+		ID          string             `json:"id"`
+		Steps       []string           `json:"steps"`
+		Image       string             `json:"image"`
+		Environment *map[string]string `json:"environment,omitempty"`
+		Needs       *[]string          `json:"needs,omitempty"`
+		NeededFiles *[]string          `json:"neededFiles,omitempty"`
+		Uploads     *[]string          `json:"uploads,omitempty"`
+		Services    *map[string]struct {
+			Steps       *[]string          `json:"steps,omitempty"`
+			Environment *map[string]string `json:"environment,omitempty"`
+			Image       string             `json:"image"`
+			Healthcheck string             `json:"healthcheck"`
+		} `json:"services,omitempty"`
 	} `json:"containers"`
 }
 
@@ -48,30 +48,29 @@ func StartBuild(repo db.Repo, buildData BuildData, auth []string) (db.Build, err
 		}
 		if container.Environment != nil {
 			environment := make([]string, 0)
-			for _, item := range *container.Environment {
-				for k, v := range item {
-					environment = append(environment, fmt.Sprintf("%s=%s", k, v))
-				}
+			for k, v := range *container.Environment {
+				environment = append(environment, fmt.Sprintf("%s=%s", k, v))
 			}
 			environmentString := strings.Join(environment, ",")
 			savedContainer.Environment = &environmentString
 		}
-		if container.Service != nil {
-			savedContainer.ServiceImage = &container.Service.Image
-			savedContainer.ServiceHealthcheck = &container.Service.Healthcheck
-			if container.Service.Steps != nil {
-				command := strings.Join(*container.Service.Steps, " && ")
-				savedContainer.ServiceCommand = &command
-			}
-			if container.Service.Environment != nil {
-				environment := make([]string, 0)
-				for _, item := range *container.Service.Environment {
-					for k, v := range item {
+		if container.Services != nil {
+			for name, data := range *container.Services {
+				newContainer := db.ServiceContainer{Name: name, Image: data.Image, Healthcheck: data.Healthcheck}
+				if data.Steps != nil {
+					command := strings.Join(*data.Steps, " && ")
+					newContainer.Command = &command
+				}
+				if data.Environment != nil {
+					environment := make([]string, 0)
+					for k, v := range *data.Environment {
 						environment = append(environment, fmt.Sprintf("%s=%s", k, v))
 					}
+					environmentString := strings.Join(environment, ",")
+					newContainer.Environment = &environmentString
 				}
-				environmentString := strings.Join(environment, ",")
-				savedContainer.ServiceEnvironment = &environmentString
+				savedContainer.ServiceContainers = append(
+					savedContainer.ServiceContainers, newContainer)
 			}
 		}
 		if container.Uploads != nil {

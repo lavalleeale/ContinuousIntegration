@@ -53,16 +53,14 @@ type Build struct {
 type Container struct {
 	Id uint `gorm:"primaryKey"`
 
-	Name               string
-	Code               *int
-	Command            string `gorm:"size:8192"`
-	Image              string
-	Environment        *string `gorm:"size:512"`
-	ServiceCommand     *string `gorm:"size:512"`
-	ServiceImage       *string
-	ServiceHealthcheck *string `gorm:"size:512"`
-	ServiceEnvironment *string `gorm:"size:512"`
-	Log                string  `gorm:"size:100000"`
+	Name        string
+	Code        *int
+	Command     string `gorm:"size:8192"`
+	Image       string
+	Environment *string `gorm:"size:512"`
+	Log         string  `gorm:"size:100000"`
+
+	ServiceContainers []ServiceContainer `gorm:"constraint:OnDelete:CASCADE;"`
 
 	UploadedFiles []UploadedFile `gorm:"constraint:OnDelete:CASCADE;"`
 
@@ -73,6 +71,18 @@ type Container struct {
 
 	BuildID uint
 	Build   Build
+}
+
+type ServiceContainer struct {
+	Id uint `gorm:"primaryKey"`
+
+	Name        string
+	Image       string
+	Healthcheck string  `gorm:"size:512"`
+	Command     *string `gorm:"size:512"`
+	Environment *string `gorm:"size:512"`
+
+	ContainerID uint
 }
 
 type NeededFile struct {

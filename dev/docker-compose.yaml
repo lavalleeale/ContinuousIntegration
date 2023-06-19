@@ -55,8 +55,9 @@ services:
     environment:
       DOMAIN: localhost
       JWT_SECRET: development
-      DOCKER_HOST: local
+      DOCKER_HOST: unix:///var/run/docker.sock
       DATABASE_URL: postgres://development:development@db:5432/development?sslmode=disable
+      REDIS_URL: redis://redis:6379
       RUNTIME: sysbox-runc
       REGISTRY_URL: registry.dev.lan
     volumes:

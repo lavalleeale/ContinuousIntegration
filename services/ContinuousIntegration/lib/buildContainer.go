@@ -18,7 +18,6 @@ import (
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/network"
-	"github.com/docker/docker/api/types/strslice"
 	"github.com/lavalleeale/ContinuousIntegration/lib/db"
 	sessionseal "github.com/lavalleeale/SessionSeal"
 	"golang.org/x/exp/slices"
@@ -26,6 +25,9 @@ import (
 
 func BuildContainer(repoUrl string, buildID uint, cont db.Container, organizationId string, wg *sync.WaitGroup, failed *bool) {
 	defer wg.Done()
+	build := db.Build{ID: buildID}
+
+	db.Db.Preload("Containers.UploadedFiles").First(&build)
 	networkResp, err := DockerCli.NetworkCreate(context.Background(),
 		fmt.Sprintf("%d", cont.Id), types.NetworkCreate{
 			Driver: "bridge",
@@ -34,27 +36,27 @@ func BuildContainer(repoUrl string, buildID uint, cont db.Container, organizatio
 		log.Fatal(err)
 	}
 
-	var serviceContainerResponse container.CreateResponse
+	serviceContainerResponses := make([]container.CreateResponse, len(cont.ServiceContainers))
 
-	if cont.ServiceImage != nil {
+	for i, v := range cont.ServiceContainers {
 		// Create a container
-		var givenCmd strslice.StrSlice
-		if cont.ServiceCommand == nil {
+		var givenCmd []string
+		if v.Command == nil {
 			givenCmd = nil
 		} else {
-			givenCmd = []string{"bash", "-c", *cont.ServiceCommand}
+			givenCmd = []string{"bash", "-c", *v.Command}
 		}
 		serivceEnv := make([]string, 0)
-		if cont.ServiceEnvironment != nil {
-			serivceEnv = append(serivceEnv, strings.Split(*cont.ServiceEnvironment, ",")...)
+		if v.Environment != nil {
+			serivceEnv = append(serivceEnv, strings.Split(*v.Environment, ",")...)
 		}
-		serviceContainerResponse, err = DockerCli.ContainerCreate(context.Background(), &container.Config{
-			Image:  *cont.ServiceImage,
+		response, err := DockerCli.ContainerCreate(context.Background(), &container.Config{
+			Image:  v.Image,
 			Cmd:    givenCmd,
 			Env:    serivceEnv,
 			Labels: map[string]string{"buildId": fmt.Sprint(buildID)},
 			Healthcheck: &container.HealthConfig{
-				Test:        []string{"CMD-SHELL", *cont.ServiceHealthcheck},
+				Test:        []string{"CMD-SHELL", v.Healthcheck},
 				StartPeriod: time.Second * 30,
 				Timeout:     time.Second * 15,
 				Interval:    time.Second * 5,
@@ -63,17 +65,16 @@ func BuildContainer(repoUrl string, buildID uint, cont db.Container, organizatio
 		}, nil, &network.NetworkingConfig{
 			EndpointsConfig: map[string]*network.EndpointSettings{
 				networkResp.ID: {
-					Aliases: []string{"service"},
+					Aliases: []string{v.Name},
 				},
 			},
 		}, nil, "")
-
 		if err != nil {
 			// Never expect docker to error
 			panic(err)
 		}
 
-		if err := DockerCli.ContainerStart(context.TODO(), serviceContainerResponse.ID,
+		if err := DockerCli.ContainerStart(context.TODO(), response.ID,
 			types.ContainerStartOptions{}); err != nil {
 			// Never expect docker to error
 			panic(err)
@@ -82,7 +83,7 @@ func BuildContainer(repoUrl string, buildID uint, cont db.Container, organizatio
 		ctx, close := context.WithTimeout(context.TODO(), time.Minute)
 
 		msgs, errs := DockerCli.Events(ctx, types.EventsOptions{
-			Filters: filters.NewArgs(filters.Arg("container", serviceContainerResponse.ID), filters.Arg("event", "health_status")),
+			Filters: filters.NewArgs(filters.Arg("container", response.ID), filters.Arg("event", "health_status")),
 		})
 	outer:
 		for {
@@ -93,8 +94,23 @@ func BuildContainer(repoUrl string, buildID uint, cont db.Container, organizatio
 				if errors.Is(err, context.DeadlineExceeded) {
 					code := 255
 					db.Db.Model(&cont).Updates(db.Container{
-						Log: "Service container failed to be healthy", Code: &code,
+						Log: fmt.Sprintf("Service container %s failed to be healthy", v.Name), Code: &code,
 					})
+					for k, serviceContainerResponse := range serviceContainerResponses {
+						if k == i {
+							break
+						}
+						DockerCli.ContainerRemove(context.TODO(),
+							serviceContainerResponse.ID, types.ContainerRemoveOptions{
+								Force: true,
+							})
+					}
+					err = Rdb.Publish(context.TODO(), fmt.Sprintf(
+						"build.%d.container.%d.die", build.ID, cont.Id), &code).Err()
+					if err != nil {
+						panic(err)
+					}
+					*failed = true
 					return
 				}
 			case msg := <-msgs:
@@ -104,11 +120,8 @@ func BuildContainer(repoUrl string, buildID uint, cont db.Container, organizatio
 				}
 			}
 		}
+		serviceContainerResponses[i] = response
 	}
-
-	build := db.Build{ID: buildID}
-
-	db.Db.Preload("Containers.UploadedFiles").First(&build)
 
 	var dockerAuth struct {
 		OrganizationID string `json:"organizationId"`
@@ -237,7 +250,7 @@ test:
 	DockerCli.ContainerRemove(context.TODO(), mainContainerResponse.ID, types.ContainerRemoveOptions{
 		Force: true,
 	})
-	if cont.ServiceImage != nil {
+	for _, serviceContainerResponse := range serviceContainerResponses {
 		DockerCli.ContainerRemove(context.TODO(), serviceContainerResponse.ID, types.ContainerRemoveOptions{
 			Force: true,
 		})
@@ -246,8 +259,12 @@ test:
 
 	if t.State.ExitCode == 0 {
 		var edges []db.ContainerGraphEdge
-		db.Db.Where(db.ContainerGraphEdge{FromID: uint(cont.Id)}, "FromID").Preload(
-			"To.EdgesToward.From").Preload("To.NeededFiles").Preload("To.UploadedFiles").Find(&edges)
+		db.Db.Where(db.ContainerGraphEdge{FromID: uint(cont.Id)}, "FromID").
+			Preload("To.EdgesToward.From").
+			Preload("To.NeededFiles").
+			Preload("To.UploadedFiles").
+			Preload("To.ServiceContainers").
+			Find(&edges)
 		for _, edge := range edges {
 			for index, from := range edge.To.EdgesToward {
 				if from.From.Code == nil || *from.From.Code != 0 {

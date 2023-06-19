@@ -68,7 +68,7 @@ func HandleBuildWs(c *gin.Context) {
 	for _, cont := range build.Containers {
 		if cont.Code == nil {
 			left++
-		} else if left == 0 {
+		} else {
 			socket.WriteJSON(gin.H{
 				"type": "die", "id": cont.Id,
 				"code": strconv.FormatInt(int64(*cont.Code), 10),
