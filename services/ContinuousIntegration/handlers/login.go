@@ -31,8 +31,7 @@ func Login(c *gin.Context) {
 		return
 	}
 
-	user, err := auth.Login(dat.Username, dat.Password, true)
-
+	user, err := auth.Login(dat.Username, dat.Password, false)
 	if err != nil {
 		c.HTML(http.StatusInternalServerError, "login", gin.H{
 			"error": err,

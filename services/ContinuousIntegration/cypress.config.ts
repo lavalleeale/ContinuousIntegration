@@ -1,6 +1,6 @@
 import { defineConfig } from "cypress";
 // @ts-expect-error
-import { removeDirectory } from 'cypress-delete-downloads-folder';
+import { removeDirectory } from "cypress-delete-downloads-folder";
 import { spawn } from "node:child_process";
 
 module.exports = defineConfig({
@@ -10,7 +10,11 @@ module.exports = defineConfig({
       on("task", {
         "db:seed": async (scenarioName) => {
           return new Promise((resolve, reject) => {
-            const seedProcess = spawn("go", ["run", "./seed"]);
+            var args = ["run", "./seed"];
+            if (scenarioName == "default") {
+              args = args.concat(["tester", "tester"]);
+            }
+            const seedProcess = spawn("go", args);
 
             seedProcess.stdout.on("data", (data) => {
               console.log(`stdout: ${data}`);
@@ -29,7 +33,7 @@ module.exports = defineConfig({
             });
           });
         },
-        removeDirectory
+        removeDirectory,
       });
     },
   },

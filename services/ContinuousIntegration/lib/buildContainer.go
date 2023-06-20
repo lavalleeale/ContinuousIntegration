@@ -122,6 +122,7 @@ func BuildContainer(repoUrl string, buildID uint, cont db.Container, organizatio
 				if errors.Is(err, context.DeadlineExceeded) {
 					failEarly(buildID, &cont, serviceContainerResponses, networkResp,
 						fmt.Sprintf("Service container %s failed to be healthy", v.Name), &container.CreateResponse{})
+					*failed = true
 					return
 				}
 			case msg := <-msgs:
@@ -243,6 +244,7 @@ test:
 		if err != nil {
 			failEarly(buildID, &cont, serviceContainerResponses, networkResp,
 				fmt.Sprintf("Failed to upload file (%s)", file.Path), &mainContainerResponse)
+			*failed = true
 			return
 		}
 		defer reader.Close()

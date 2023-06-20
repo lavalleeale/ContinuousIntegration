@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"embed"
 	"html/template"
 	"io/fs"
 	"log"
@@ -14,17 +13,12 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
+	"github.com/lavalleeale/ContinuousIntegration/lib/auth"
 	"github.com/lavalleeale/ContinuousIntegration/lib/db"
 	"github.com/lavalleeale/ContinuousIntegration/services/ContinuousIntegration/handlers"
 	"github.com/lavalleeale/ContinuousIntegration/services/ContinuousIntegration/lib"
 	"github.com/lavalleeale/ContinuousIntegration/services/ContinuousIntegration/ws"
 )
-
-//go:embed assets/output/*
-var assetsFS embed.FS
-
-//go:embed templates/*
-var templatesFS embed.FS
 
 func main() {
 	err := godotenv.Load()
@@ -40,6 +34,11 @@ func main() {
 
 	if err != nil {
 		log.Fatal("Failed to Open DB")
+	}
+
+	if len(os.Args) > 1 && os.Args[1] == "addUser" {
+		log.Println(auth.Login(os.Args[2], os.Args[3], true))
+		return
 	}
 
 	lib.StartDockerClient()

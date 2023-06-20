@@ -3,15 +3,25 @@
     {
       "id": "assets",
       "image": "base",
-      "steps": ["ls"],
-      "uploads": ["/repo"]
+      "steps": [
+        "ls"
+      ],
+      "uploads": [
+        "/repo"
+      ]
     },
     {
       "id": "go",
       "image": "base",
-      "steps": ["find /neededFiles"],
-      "neededFiles": ["assets:/repo"],
-      "needs": ["assets"]
+      "steps": [
+        "find /neededFiles"
+      ],
+      "neededFiles": [
+        "assets:/repo"
+      ],
+      "needs": [
+        "assets"
+      ]
     }
   ]
 }
