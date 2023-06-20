@@ -10,32 +10,32 @@
   <div class="paper min-w-[10%] inline-block align-top">
     <a
       href="/build/{{ .BuildID }}/container/{{ .Id }}"
-      class="text-white inline-block w-full cursor-pointer"
+      class="text-normal inline-block w-full cursor-pointer"
     >
       {{ .Name }} {{ $length := len .Log }} {{ if eq $length 0 }}
       <div
-        class="inline bg-gray-500 rounded-2xl float-right h-6 w-6 text-center"
+        class="inline bg-gray-500 rounded-2xl float-right h-6 w-6 text-center text-white"
         id="{{ .Id }}"
       >
         ?
       </div>
       {{ else if not .Code }}
       <div
-        class="inline bg-yellow-500 rounded-2xl float-right h-6 w-6 text-center"
+        class="inline bg-yellow-500 rounded-2xl float-right h-6 w-6 text-center text-white"
         id="{{ .Id }}"
       >
         ?
       </div>
       {{ else if eq (Deref .Code) 0 }}
       <div
-        class="inline bg-green-500 rounded-2xl float-right h-6 w-6 text-center"
+        class="inline bg-green-500 rounded-2xl float-right h-6 w-6 text-center text-white"
         id="{{ .Id }}"
       >
         ✓
       </div>
       {{ else }}
       <div
-        class="inline bg-red-500 rounded-2xl float-right h-6 w-6 text-center"
+        class="inline bg-red-500 rounded-2xl float-right h-6 w-6 text-center text-white"
         id="{{ .Id }}"
       >
         X

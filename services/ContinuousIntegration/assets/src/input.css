@@ -19,6 +19,10 @@ pre {
   @apply dark:text-white;
 }
 
+.text-normal {
+  @apply dark:text-white text-black;
+}
+
 a {
   @apply text-blue-600 hover:text-blue-800;
 }

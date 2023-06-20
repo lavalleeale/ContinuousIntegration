@@ -4,13 +4,13 @@
       "id": "assets",
       "image": "base",
       "steps": ["ls"],
-      "uploads": ["/repo/dev"]
+      "uploads": ["/repo"]
     },
     {
       "id": "go",
       "image": "base",
       "steps": ["find /neededFiles"],
-      "neededFiles": ["assets:/repo/dev"],
+      "neededFiles": ["assets:/repo"],
       "needs": ["assets"]
     }
   ]

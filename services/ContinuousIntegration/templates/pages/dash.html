@@ -30,10 +30,10 @@
       <form method="post" action="/deleteRepo">
         <input type="hidden" name="id" value="{{ .ID }}" />
         <button
-          class="fa-sharp fa-solid fa-trash float-right text-xl text-white hover:text-red-500 pl-2 cursor-pointer"
+          class="fa-sharp fa-solid fa-trash float-right text-xl text-normal hover:text-red-500 pl-2 cursor-pointer"
         ></button>
       </form>
-      <a href="/repo/{{ .ID }}" class="text-white">
+      <a href="/repo/{{ .ID }}" class="text-normal">
         <div>
           <p>{{ .Url }}</p>
         </div>

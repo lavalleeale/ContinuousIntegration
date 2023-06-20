@@ -448,6 +448,11 @@ cssesc@^3.0.0:
   resolved "https://registry.yarnpkg.com/cssesc/-/cssesc-3.0.0.tgz#37741919903b868565e1c09ea747445cd18983ee"
   integrity sha512-/Tb/JcjK111nNScGob5MNtsntNM1aCNUDipB/TkwZFhyDrrE47SOx/18wF2bbjgc3ZzCSKW1T5nt5EbFoAz/Vg==
 
+cypress-delete-downloads-folder@^0.0.2:
+  version "0.0.2"
+  resolved "https://registry.yarnpkg.com/cypress-delete-downloads-folder/-/cypress-delete-downloads-folder-0.0.2.tgz#5831b6be31e45333450d4ce6b17cdf3d3a0de1f7"
+  integrity sha512-fqkN+Qyble5Y080FhfHs4P2Vm7aV2Ez9AidYzxhX5EUnE1AJOJghAs1n8KCVdZ0WG8YJM2bg+MA55e7ISpsd2w==
+
 cypress@*, cypress@^12.14.0:
   version "12.14.0"
   resolved "https://registry.yarnpkg.com/cypress/-/cypress-12.14.0.tgz#37a19b85f5e9d881995e9fee1ddf41b3d3a623dd"

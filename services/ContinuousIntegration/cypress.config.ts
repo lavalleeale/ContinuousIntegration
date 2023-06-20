@@ -1,4 +1,6 @@
 import { defineConfig } from "cypress";
+// @ts-expect-error
+import { removeDirectory } from 'cypress-delete-downloads-folder';
 import { spawn } from "node:child_process";
 
 module.exports = defineConfig({
@@ -27,6 +29,7 @@ module.exports = defineConfig({
             });
           });
         },
+        removeDirectory
       });
     },
   },

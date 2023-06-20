@@ -13,3 +13,4 @@
 **/.cache
 !root_ca.crt
 gitea
+covdatafiles
