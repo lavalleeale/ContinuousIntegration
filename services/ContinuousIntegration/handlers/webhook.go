@@ -2,23 +2,57 @@ package handlers
 
 import (
 	"context"
-	"fmt"
-	"io"
 	"log"
 	"net/http"
 	"os"
-	"strconv"
 	"strings"
 	"time"
 
 	"github.com/bradleyfalzon/ghinstallation"
 	"github.com/gin-gonic/gin"
-	"github.com/gin-gonic/gin/binding"
 	"github.com/google/go-github/github"
 	"github.com/lavalleeale/ContinuousIntegration/lib/db"
 	"github.com/lavalleeale/ContinuousIntegration/services/ContinuousIntegration/lib"
 	"gorm.io/gorm"
 )
+
+var (
+	failure    = "failure"
+	inProgress = "in_progress"
+	completed  = "completed"
+)
+
+func updateCheckRun(
+	client *github.Client,
+	owner string,
+	repo string,
+	checkRunId int64,
+	title string,
+	summary string,
+	status string,
+	detailsUrl *string,
+	conclusion *string,
+) {
+	client.Checks.UpdateCheckRun(context.TODO(),
+		owner, repo,
+		checkRunId, github.UpdateCheckRunOptions{
+			Status:     &status,
+			Name:       "Test",
+			Output:     &github.CheckRunOutput{Title: &title, Summary: &summary},
+			DetailsURL: detailsUrl,
+			Conclusion: conclusion,
+		})
+}
+
+func generateMarkdown(statuses map[uint]string) string {
+	var linesBuilder strings.Builder
+	linesBuilder.WriteString("|Container Name|Status|")
+	linesBuilder.WriteString("\n|-|-|")
+	for _, v := range statuses {
+		linesBuilder.WriteString(v)
+	}
+	return linesBuilder.String()
+}
 
 func HandleWebhook(c *gin.Context) {
 	payload, err := github.ValidatePayload(c.Request, []byte(os.Getenv("WEBHOOK_SECRET")))
@@ -54,12 +88,6 @@ func HandleWebhook(c *gin.Context) {
 		}
 	case *github.CheckRunEvent:
 		if *event.CheckRun.App.ID == lib.AppID {
-			var repo db.Repo
-			err = db.Db.First(&repo, "github_repo_id = ?", &event.Repo.ID).Error
-			if err != nil {
-				log.Println(err)
-				return
-			}
 			transport := ghinstallation.NewFromAppsTransport(lib.Itr, *event.Installation.ID)
 			client := github.NewClient(&http.Client{
 				Transport: transport,
@@ -75,107 +103,12 @@ func HandleWebhook(c *gin.Context) {
 					panic(err)
 				}
 			} else if *event.Action == "created" {
-				content, err := client.Repositories.DownloadContents(context.TODO(),
-					*event.Repo.Owner.Login, *event.Repo.Name, "ci.json", &github.RepositoryContentGetOptions{
-						Ref: *event.CheckRun.HeadSHA,
-					})
-				if err != nil {
-					if strings.Contains(err.Error(), "No file named") {
-						// File not found
-						conclusion := "failure"
-						title := "ci.json not found!"
-						summary := "ci.json file not found in root of repository"
-						client.Checks.UpdateCheckRun(context.TODO(),
-							*event.Repo.Owner.Login, *event.Repo.Name,
-							*event.CheckRun.ID, github.UpdateCheckRunOptions{
-								Conclusion: &conclusion, Name: "Test",
-								Output: &github.CheckRunOutput{Title: &title, Summary: &summary},
-							})
-						return
-					} else {
-						// This should never fail since the webhook is directly from github and we know that our installation must be valid, and the panic will not be facing users
-						panic(err)
-					}
-				}
-				json, err := io.ReadAll(content)
-				if err != nil {
-					// Should never fail since file was downloaded successfully
-					panic(err)
-				}
-				gitConfig := ""
-				buildData := lib.BuildData{GitConfig: &gitConfig}
-				err = binding.JSON.BindBody(json, &buildData.Containers)
-				if err != nil {
-					// Invalid JSON
-					conclusion := "failure"
-					title := "ci.json not valid"
-					summary := err.Error()
-					client.Checks.UpdateCheckRun(context.TODO(),
-						*event.Repo.Owner.Login, *event.Repo.Name,
-						*event.CheckRun.ID, github.UpdateCheckRunOptions{
-							Conclusion: &conclusion, Name: "Test",
-							Output: &github.CheckRunOutput{Title: &title, Summary: &summary},
-						})
-					return
-				}
-				for index, v := range buildData.Containers {
-					buildData.Containers[index].Steps = append([]string{
-						fmt.Sprintf("git checkout %s", *event.CheckRun.HeadSHA),
-					}, v.Steps...)
-				}
-				token, err := transport.Token(context.TODO())
+				token, err := transport.Token(context.Background())
 				if err != nil {
 					// This should never fail since the webhook is directly from github and we know that our installation must be valid, and the panic will not be facing users
 					panic(err)
 				}
-				build, err := lib.StartBuild(repo, buildData, []string{
-					"x-access-token", token,
-				})
-				if err != nil {
-					conclusion := "failure"
-					title := "ci.json not valid"
-					summary := err.Error()
-					client.Checks.UpdateCheckRun(context.TODO(),
-						*event.Repo.Owner.Login, *event.Repo.Name,
-						*event.CheckRun.ID, github.UpdateCheckRunOptions{
-							Conclusion: &conclusion, Name: "Test",
-							Output: &github.CheckRunOutput{Title: &title, Summary: &summary},
-						})
-				} else {
-					status := "in_progress"
-					externalID := strconv.FormatInt(int64(build.ID), 10)
-					var detailsUrl string
-					if os.Getenv("APP_ENV") == "production" {
-						detailsUrl = fmt.Sprintf("https://%s/build/%d", c.Request.Host, build.ID)
-					} else {
-						detailsUrl = fmt.Sprintf("http://%s/build/%d", c.Request.Host, build.ID)
-					}
-					client.Checks.UpdateCheckRun(context.TODO(),
-						*event.Repo.Owner.Login, *event.Repo.Name,
-						*event.CheckRun.ID, github.UpdateCheckRunOptions{
-							Status: &status, ExternalID: &externalID, DetailsURL: &detailsUrl, Name: "Test",
-						})
-				}
-				pubsub := lib.Rdb.Subscribe(context.TODO(), fmt.Sprintf("build.%d", build.ID))
-
-				defer pubsub.Close()
-
-				ch := pubsub.Channel()
-
-				msg := <-ch
-
-				externalID := strconv.FormatUint(uint64(build.ID), 10)
-				var detailsUrl string
-				if os.Getenv("APP_ENV") == "production" {
-					detailsUrl = fmt.Sprintf("https://%s/build/%d", c.Request.Host, build.ID)
-				} else {
-					detailsUrl = fmt.Sprintf("http://%s/build/%d", c.Request.Host, build.ID)
-				}
-				client.Checks.UpdateCheckRun(context.TODO(),
-					*event.Repo.Owner.Login, *event.Repo.Name,
-					*event.CheckRun.ID, github.UpdateCheckRunOptions{
-						Conclusion: &msg.Payload, ExternalID: &externalID, DetailsURL: &detailsUrl, Name: "Test",
-					})
+				HandleCheckRun(client, event, token, c.Request.Host)
 			}
 		}
 	case *github.InstallationEvent:
