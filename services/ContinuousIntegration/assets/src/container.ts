@@ -1,15 +1,22 @@
 import Convert from "ansi-to-html";
 import ReconnectingWebSocket from "reconnecting-websocket";
-const convert = new Convert({
-  newline: true,
-  stream: false,
-  fg: "#FFF",
-  bg: "#0F172A",
-});
 
-const code = document.getElementById("code")!;
-const log = document.getElementById("log")!;
-(() => {
+var convert: Convert;
+var ws: ReconnectingWebSocket;
+
+window.onunload = () => {
+  ws.close();
+};
+
+window.addEventListener("pageshow", () => {
+  convert = new Convert({
+    newline: true,
+    stream: false,
+    fg: "#FFF",
+    bg: "#0F172A",
+  });
+  const code = document.getElementById("code")!;
+  const log = document.getElementById("log")!;
   log.innerHTML = convert.toHtml(log.innerHTML);
   if (
     !code.innerText.includes("Running") &&
@@ -18,7 +25,7 @@ const log = document.getElementById("log")!;
     return;
   }
 
-  const ws = new ReconnectingWebSocket(
+  ws = new ReconnectingWebSocket(
     `${window.location.protocol.replace("http", "ws")}//${
       window.location.host
     }/build/${window.location.href.split("/")[4]}/container/${
@@ -41,4 +48,4 @@ const log = document.getElementById("log")!;
       ws.close();
     }
   };
-})();
+});

@@ -14,14 +14,38 @@
       "id": "go",
       "image": "base",
       "steps": [
-        "find /neededFiles"
+        "sleep 5",
+        "echo \"set test $DATA\" | redis-cli -h redis",
+        "echo \"get test\" | redis-cli -h redis",
+        "find /neededFiles",
+        "sleep 5"
       ],
       "neededFiles": [
         "assets:/repo"
       ],
       "needs": [
         "assets"
-      ]
+      ],
+      "environment": {
+        "DATA": "CYPRESS"
+      },
+      "services": {
+        "redis": {
+          "image": "redis",
+          "healthcheck": "redis-cli ping"
+        }
+      }
+    },
+    {
+      "id": "run",
+      "image": "base",
+      "steps": [
+        "node -e \"require('http').createServer(function (req, res) { res.end('OK'); }).listen(process.env.PORT);\""
+      ],
+      "needs": [
+        "go"
+      ],
+      "persist": true
     }
   ]
 }

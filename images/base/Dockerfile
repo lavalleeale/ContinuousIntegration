@@ -18,7 +18,7 @@ RUN add-apt-repository \
     "deb [arch=amd64] https://download.docker.com/linux/debian \
     $(lsb_release -cs) \
     stable"
-RUN apt-get update && apt-get install --no-install-recommends -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin
+RUN apt-get update && apt-get install --no-install-recommends -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin redis postgresql-client iproute2
 
 ADD CA.pe[m] /usr/local/share/ca-certificates/registry.crt
 RUN if [ -f "/usr/local/share/ca-certificates/registry.crt" ]; then \

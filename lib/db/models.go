@@ -59,6 +59,7 @@ type Container struct {
 	Image       string
 	Environment *string `gorm:"size:512"`
 	Log         string  `gorm:"size:100000"`
+	Persist     *string
 
 	ServiceContainers []ServiceContainer `gorm:"constraint:OnDelete:CASCADE;"`
 

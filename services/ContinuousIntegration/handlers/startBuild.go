@@ -64,7 +64,9 @@ func StartBuild(c *gin.Context) {
 
 	build, err := lib.StartBuild(repo, buildData, authData)
 	if err != nil {
+		log.Println(err)
 		c.Redirect(http.StatusFound, "/")
+		return
 	}
 
 	c.Redirect(http.StatusFound, fmt.Sprintf("/build/%d", build.ID))

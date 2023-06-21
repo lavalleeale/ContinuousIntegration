@@ -10,10 +10,7 @@ module.exports = defineConfig({
       on("task", {
         "db:seed": async (scenarioName) => {
           return new Promise((resolve, reject) => {
-            var args = ["run", "./seed"];
-            if (scenarioName == "default") {
-              args = args.concat(["tester", "tester"]);
-            }
+            var args = ["run", "./seed", scenarioName];
             const seedProcess = spawn("go", args);
 
             seedProcess.stdout.on("data", (data) => {

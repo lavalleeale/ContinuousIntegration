@@ -10,6 +10,9 @@
       "path": "services/ContinuousIntegration"
     },
     {
+      "path": "services/proxy"
+    },
+    {
       "path": "lib/db"
     },
     {

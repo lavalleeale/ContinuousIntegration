@@ -23,7 +23,23 @@ func main() {
 	}
 
 	log.Println(db.Db.Session(&gorm.Session{AllowGlobalUpdate: true}).Delete(&db.Organization{}).RowsAffected)
+	for _, seq := range []string{
+		"repos_id_seq", "builds_id_seq",
+		"container_graph_edges_id_seq", "needed_files_id_seq", "service_containers_id_seq",
+		"containers_id_seq",
+	} {
+		db.Db.Exec("ALTER SEQUENCE " + seq + " RESTART WITH 1")
+	}
 	if len(os.Args) > 1 {
-		log.Println(auth.Login(os.Args[1], os.Args[2], true))
+		switch os.Args[1] {
+		case "default":
+			auth.Login("tester", "tester", true)
+		case "invalidAccess":
+			auth.Login("user1", "user1", true)
+			db.Db.Create(&db.Container{Build: db.Build{
+				Repo: db.Repo{OrganizationID: "user1", Url: "http://test"},
+			}})
+			auth.Login("user2", "user2", true)
+		}
 	}
 }

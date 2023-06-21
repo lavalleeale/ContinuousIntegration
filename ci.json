@@ -31,28 +31,41 @@
     "id": "registry",
     "image": "base",
     "steps": [
-      "(dockerd > dockerlog.txt 2>&1 &) && sleep 5",
-      "docker buildx create --driver docker-container --name mybuilder --use --bootstrap",
-      "docker cp /usr/local/share/ca-certificates/registry.crt buildx_buildkit_mybuilder0:/usr/local/share/ca-certificates/registry.crt",
-      "docker exec buildx_buildkit_mybuilder0 update-ca-certificates",
-      "docker login --username=$DOCKER_USER --password=$DOCKER_PASS $REGISTRY",
-      "cp /usr/local/share/ca-certificates/registry.crt root_ca.crt",
-      "docker buildx build --tag $REGISTRY/alex/registry --cache-to=type=registry,ref=$REGISTRY/alex/registry:CI,mode=max --cache-from=type=registry,ref=$REGISTRY/alex/registry:CI --push . -f Dockerfile.registry"
+      "go build -C services/registry"
+    ],
+    "uploads": [
+      "/repo/services/registry/registry"
+    ]
+  },
+  {
+    "id": "proxy",
+    "image": "base",
+    "steps": [
+      "go build -C services/proxy"
+    ],
+    "uploads": [
+      "/repo/services/proxy/proxy"
     ]
   },
   {
     "id": "test",
     "image": "base",
     "steps": [
-      "cp /neededFiles/ContinuousIntegration services/ContinuousIntegration/ContinuousIntegration",
+      "cp /neededFiles/* services/ContinuousIntegration/",
       "(dockerd > dockerlog.txt 2>&1 &)",
       "yarn --cwd services/ContinuousIntegration --immutable",
+      "docker run -d -p 3000:3000 pascalgn/git-server-docker",
+      "sleep 5",
+      "git remote add test http://localhost:3000/repository.git",
+      "git push test HEAD:master --force",
       "docker buildx create --driver docker-container --name mybuilder --use --bootstrap",
       "docker cp /usr/local/share/ca-certificates/registry.crt buildx_buildkit_mybuilder0:/usr/local/share/ca-certificates/registry.crt",
       "docker exec buildx_buildkit_mybuilder0 update-ca-certificates",
       "docker login --username=$DOCKER_USER --password=$DOCKER_PASS $REGISTRY",
       "docker buildx build --tag base --cache-to=type=registry,ref=$REGISTRY/alex/base:CI,mode=max --cache-from=type=registry,ref=$REGISTRY/alex/base:CI --load images/base",
-      "yarn --cwd services/ContinuousIntegration conc --kill-others --names \"server,cypress\" --success \"command-cypress\" \"./ContinuousIntegration\" \"yarn cypress run -s cypress/e2e/basic.cy.ts\"",
+      "docker pull redis",
+      "echo yarn --cwd services/ContinuousIntegration conc --kill-others --names \"proxy,server,cypress\" --success \"command-cypress\" \"./proxy\" \"./ContinuousIntegration\" \"yarn cypress run --env host=http://$(ip a s eth0 | grep -oP '(?<=inet\\s)\\d+(\\.\\d+){3}'):3000\"",
+      "yarn --cwd services/ContinuousIntegration conc --kill-others --names \"proxy,server,cypress\" --success \"command-cypress\" \"./proxy\" \"./ContinuousIntegration\" \"yarn cypress run --env host=http://$(ip a s eth0 | grep -oP '(?<=inet\\s)\\d+(\\.\\d+){3}'):3000\"",
       "docker tag base $REGISTRY/alex/base",
       "docker push $REGISTRY/alex/base"
     ],
@@ -63,14 +76,19 @@
       "DATABASE_URL": "postgres://development:development@db:5432/development?sslmode=disable",
       "REDIS_URL": "redis://redis:6379",
       "RUNTIME": "runc",
-      "REGISTRY_URL": "1.1.1.1"
+      "REGISTRY_URL": "1.1.1.1",
+      "ADDRESS": ":http",
+      "MAIN_HOST": "localhost:8080",
+      "PERSIST_HOST": "localhost"
     },
     "needs": [
       "main",
-      "registry"
+      "registry",
+      "proxy"
     ],
     "neededFiles": [
-      "main:/repo/services/ContinuousIntegration/ContinuousIntegration"
+      "main:/repo/services/ContinuousIntegration/ContinuousIntegration",
+      "proxy:/repo/services/proxy/proxy"
     ],
     "services": {
       "db": {
