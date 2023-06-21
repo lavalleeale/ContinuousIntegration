@@ -6,12 +6,24 @@
     <meta http-equiv="X-UA-Compatible" content="IE=edge" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <link rel="stylesheet" href="/assets/dist.css" />
-    {{ if .}}
+    {{ if or (eq . "dash") (eq . "repo")}}
     <script
       src="https://kit.fontawesome.com/2ef0f5c117.js"
       crossorigin="anonymous"
     ></script>
-    <script src="/assets/{{ . }}.js" defer type="module"></script>
+    <script src="/assets/modal.js" defer type="module"></script>
+    {{ else if eq . "build"}}
+    <script
+      src="https://kit.fontawesome.com/2ef0f5c117.js"
+      crossorigin="anonymous"
+    ></script>
+    <script src="/assets/build.js" type="module"></script>
+    {{ else if eq . "container"}}
+    <script
+      src="https://kit.fontawesome.com/2ef0f5c117.js"
+      crossorigin="anonymous"
+    ></script>
+    <script src="/assets/container.js" defer type="module"></script>
     {{ end }}
     <title>Document</title>
   </head>

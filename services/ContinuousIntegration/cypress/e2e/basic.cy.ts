@@ -27,7 +27,7 @@ describe("Full Spec", { testIsolation: false }, () => {
     cy.get(".bg-gray-500", { timeout: 20000 }).should("have.length", 2);
     cy.get(".bg-green-500", { timeout: 20000 }).should("be.visible");
     cy.get(".bg-yellow-500", { timeout: 20000 }).should("be.visible");
-    cy.contains("go").click();
+    cy.get('[href="/build/1/container/2"]').click({ force: true });
     cy.contains("/neededFiles/repo/ci.json").should("not.exist");
     cy.contains("CYPRESS").should("not.exist");
     cy.contains("/neededFiles/repo/ci.json", { timeout: 20000 }).should(
@@ -37,7 +37,7 @@ describe("Full Spec", { testIsolation: false }, () => {
     cy.go("back");
     cy.get(".bg-green-500", { timeout: 20000 }).should("have.length", 2);
     cy.get(".bg-yellow-500", { timeout: 20000 }).should("be.visible");
-    cy.contains("assets").parent().contains("/repo").click();
+    cy.contains("assets").parent().contains("/repo").click({ force: true });
     cy.readFile(`${Cypress.config("downloadsFolder")}/_repo.tar`);
     deleteDownloadsFolder();
     cy.get(".bg-green-500", { timeout: 20000 }).should("have.length", 2);

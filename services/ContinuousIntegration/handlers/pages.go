@@ -61,7 +61,7 @@ func BuildPage(c *gin.Context) {
 		if err == nil {
 
 			build := db.Build{ID: uint(buildId), Repo: db.Repo{OrganizationID: user.OrganizationID}}
-			tx := db.Db.Preload("Repo").Preload("Containers").Preload(
+			tx := db.Db.Preload("Repo").Preload("Containers.EdgesFrom").Preload(
 				"Containers.UploadedFiles", func(db *gorm.DB) *gorm.DB {
 					return db.Select("id", "path", "container_id")
 				}).First(&build)

@@ -1,15 +1,8 @@
 import Convert from "ansi-to-html";
 import ReconnectingWebSocket from "reconnecting-websocket";
 
-var convert: Convert;
-var ws: ReconnectingWebSocket;
-
-window.onunload = () => {
-  ws.close();
-};
-
 window.addEventListener("pageshow", () => {
-  convert = new Convert({
+  const convert = new Convert({
     newline: true,
     stream: false,
     fg: "#FFF",
@@ -25,7 +18,7 @@ window.addEventListener("pageshow", () => {
     return;
   }
 
-  ws = new ReconnectingWebSocket(
+  const ws = new ReconnectingWebSocket(
     `${window.location.protocol.replace("http", "ws")}//${
       window.location.host
     }/build/${window.location.href.split("/")[4]}/container/${
