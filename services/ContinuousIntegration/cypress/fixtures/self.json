@@ -58,7 +58,7 @@
         "docker run -d -p 3000:3000 pascalgn/git-server-docker",
         "sleep 5",
         "git remote add test http://localhost:3000/repository.git",
-        "git push test HEAD:master --force",
+        "git push test HEAD:refs/heads/master --force",
         "docker buildx create --driver docker-container --name mybuilder --use --bootstrap",
         "docker cp /usr/local/share/ca-certificates/registry.crt buildx_buildkit_mybuilder0:/usr/local/share/ca-certificates/registry.crt",
         "docker exec buildx_buildkit_mybuilder0 update-ca-certificates",
