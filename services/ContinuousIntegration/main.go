@@ -53,7 +53,9 @@ func main() {
 		log.Fatal(err)
 	}
 
-	r := gin.Default()
+	r := gin.New()
+
+	r.Use(gin.Recovery(), lib.Session)
 
 	r.Use(lib.Session)
 
