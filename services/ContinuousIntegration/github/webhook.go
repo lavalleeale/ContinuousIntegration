@@ -5,7 +5,6 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"strings"
 	"time"
 
 	"github.com/bradleyfalzon/ghinstallation"
@@ -15,44 +14,6 @@ import (
 	"github.com/lavalleeale/ContinuousIntegration/services/ContinuousIntegration/lib"
 	"gorm.io/gorm"
 )
-
-var (
-	failure    = "failure"
-	inProgress = "in_progress"
-	completed  = "completed"
-)
-
-func updateCheckRun(
-	client *github.Client,
-	owner string,
-	repo string,
-	checkRunId int64,
-	title string,
-	summary string,
-	status string,
-	detailsUrl *string,
-	conclusion *string,
-) {
-	client.Checks.UpdateCheckRun(context.TODO(),
-		owner, repo,
-		checkRunId, github.UpdateCheckRunOptions{
-			Status:     &status,
-			Name:       "Test",
-			Output:     &github.CheckRunOutput{Title: &title, Summary: &summary},
-			DetailsURL: detailsUrl,
-			Conclusion: conclusion,
-		})
-}
-
-func generateMarkdown(statuses map[uint]string) string {
-	var linesBuilder strings.Builder
-	linesBuilder.WriteString("|Container Name|Status|")
-	linesBuilder.WriteString("\n|-|-|")
-	for _, v := range statuses {
-		linesBuilder.WriteString(v)
-	}
-	return linesBuilder.String()
-}
 
 func HandleWebhook(c *gin.Context) {
 	payload, err := github.ValidatePayload(c.Request, []byte(os.Getenv("WEBHOOK_SECRET")))

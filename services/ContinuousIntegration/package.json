@@ -24,6 +24,7 @@
   },
   "dependencies": {
     "ansi-to-html": "git+https://github.com/lavalleeale/ansi-to-html#patch-1",
+    "mermaid": "^10.2.3",
     "reconnecting-websocket": "^4.4.0"
   },
   "packageManager": "yarn@1.22.19"

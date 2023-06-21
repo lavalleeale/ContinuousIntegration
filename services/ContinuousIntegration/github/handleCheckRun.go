@@ -15,6 +15,34 @@ import (
 	"github.com/lavalleeale/ContinuousIntegration/services/ContinuousIntegration/lib"
 )
 
+var (
+	failure    = "failure"
+	inProgress = "in_progress"
+	completed  = "completed"
+)
+
+func updateCheckRun(
+	client *github.Client,
+	owner string,
+	repo string,
+	checkRunId int64,
+	title string,
+	summary string,
+	status string,
+	detailsUrl *string,
+	conclusion *string,
+) {
+	client.Checks.UpdateCheckRun(context.TODO(),
+		owner, repo,
+		checkRunId, github.UpdateCheckRunOptions{
+			Status:     &status,
+			Name:       "Test",
+			Output:     &github.CheckRunOutput{Title: &title, Summary: &summary},
+			DetailsURL: detailsUrl,
+			Conclusion: conclusion,
+		})
+}
+
 func HandleCheckRun(client *github.Client, event *github.CheckRunEvent, token string, host string) {
 	var repo db.Repo
 	err := db.Db.First(&repo, "github_repo_id = ?", &event.Repo.ID).Error
@@ -59,10 +87,24 @@ func HandleCheckRun(client *github.Client, event *github.CheckRunEvent, token st
 		// This should never fail since the webhook is directly from github and we know that our installation must be valid, and the panic will not be facing users
 		panic(err)
 	}
-	build, err := lib.StartBuild(repo, buildData, []string{
+	build, edges, err := lib.StartBuild(repo, buildData, []string{
 		"x-access-token", token,
 	})
-	statuses := map[uint]string{}
+	if err != nil {
+		updateCheckRun(client, *event.Repo.Owner.Login,
+			*event.Repo.Name, *event.CheckRun.ID, "ci.json not valid", err.Error(), completed, nil, &failure)
+		return
+	}
+	idNames := make(map[uint]string)
+	var markdownBuilder strings.Builder
+	markdownBuilder.WriteString("```mermaid\ngraph LR;\n")
+	for _, v := range build.Containers {
+		idNames[v.Id] = v.Name
+		markdownBuilder.WriteString(fmt.Sprintf("%d(\"%s %s\");\n", v.Id, v.Name, "⏳"))
+	}
+	for _, v := range edges {
+		markdownBuilder.WriteString(fmt.Sprintf("%d-->%d;\n", v.FromID, v.ToID))
+	}
 	left := len(build.Containers)
 	var detailsUrl string
 	if os.Getenv("APP_ENV") == "production" {
@@ -70,18 +112,9 @@ func HandleCheckRun(client *github.Client, event *github.CheckRunEvent, token st
 	} else {
 		detailsUrl = fmt.Sprintf("http://%s/build/%d", host, build.ID)
 	}
-	if err != nil {
-		updateCheckRun(client, *event.Repo.Owner.Login,
-			*event.Repo.Name, *event.CheckRun.ID, "ci.json not valid", err.Error(), completed, nil, &failure)
-		return
-	} else {
-		for _, v := range build.Containers {
-			statuses[v.Id] = fmt.Sprintf("\n|%s|⏳|", v.Name)
-		}
-		updateCheckRun(client, *event.Repo.Owner.Login,
-			*event.Repo.Name, *event.CheckRun.ID,
-			"Build Progress", generateMarkdown(statuses), inProgress, &detailsUrl, nil)
-	}
+	updateCheckRun(client, *event.Repo.Owner.Login,
+		*event.Repo.Name, *event.CheckRun.ID,
+		"Build Progress", markdownBuilder.String()+"```", inProgress, &detailsUrl, nil)
 	containersPubsub := lib.Rdb.PSubscribe(context.TODO(),
 		fmt.Sprintf("build.%d.*.die", build.ID))
 	defer containersPubsub.Close()
@@ -100,23 +133,21 @@ func HandleCheckRun(client *github.Client, event *github.CheckRunEvent, token st
 			panic(err)
 		}
 		if msg.Payload == "0" {
-			old := statuses[uint(id)]
-			statuses[uint(id)] = old[:len(old)-4] + "✅|"
+			markdownBuilder.WriteString(fmt.Sprintf("%s(\"%s %s\");\n", idStr, idNames[uint(id)], "✅"))
 		} else {
-			old := statuses[uint(id)]
-			statuses[uint(id)] = old[:len(old)-4] + "❌|"
+			markdownBuilder.WriteString(fmt.Sprintf("%s(\"%s %s\");\n", idStr, idNames[uint(id)], "❌"))
 		}
 		if left == 0 {
 			break
 		}
 		updateCheckRun(client, *event.Repo.Owner.Login,
 			*event.Repo.Name, *event.CheckRun.ID,
-			"Build Progress", generateMarkdown(statuses), inProgress, &detailsUrl, nil)
+			"Build Progress", markdownBuilder.String()+"```", inProgress, &detailsUrl, nil)
 	}
 
 	msg := <-buildCh
 
 	updateCheckRun(client, *event.Repo.Owner.Login,
 		*event.Repo.Name, *event.CheckRun.ID,
-		"Build Progress", generateMarkdown(statuses), inProgress, &detailsUrl, &msg.Payload)
+		"Build Progress", markdownBuilder.String()+"```", completed, &detailsUrl, &msg.Payload)
 }

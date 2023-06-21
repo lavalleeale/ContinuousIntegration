@@ -1,6 +1,6 @@
 //go:build noembed
 
-package main
+package lib
 
 import (
 	"embed"

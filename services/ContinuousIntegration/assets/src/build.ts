@@ -1,12 +1,27 @@
+import mermaid from "mermaid";
 import ReconnectingWebSocket from "reconnecting-websocket";
 
-var ws: ReconnectingWebSocket;
-
-window.addEventListener("pageshow", () => {
+window.addEventListener("pageshow", async () => {
+  var element = document.querySelector("pre.flowchart");
+  const foregroundColor =
+    window.matchMedia &&
+    window.matchMedia("(prefers-color-scheme: dark)").matches
+      ? "white"
+      : "black";
+  mermaid.initialize({
+    securityLevel: "loose",
+    theme: "base",
+    themeVariables: {
+      primaryColor: "transparent",
+      lineColor: foregroundColor,
+      tertiaryTextColor: foregroundColor,
+    },
+  });
+  element.attributes.removeNamedItem("style");
+  await mermaid.run({ querySelector: "pre.flowchart" });
   var left = document.querySelectorAll(".bg-gray-500,.bg-yellow-500").length;
-  console.log(ws, ws?.readyState, left);
   if (left > 0) {
-    ws = new ReconnectingWebSocket(
+    const ws = new ReconnectingWebSocket(
       `${window.location.protocol.replace("http", "ws")}//${
         window.location.host
       }/build/${window.location.href.substring(

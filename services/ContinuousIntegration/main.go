@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"html/template"
 	"io/fs"
 	"log"
 	"net/http"
@@ -57,7 +56,7 @@ func main() {
 
 	r.Use(gin.Recovery(), lib.Session)
 
-	r.Use(lib.Session)
+	r.SetHTMLTemplate(GetTemplate())
 
 	r.POST("/github", github.HandleWebhook)
 
@@ -66,12 +65,6 @@ func main() {
 	r.GET("/addRepoGithub", github.AddRepoGithhubPage)
 
 	r.POST("/addRepoGithub", github.AddRepoGithub)
-
-	funcMap := template.FuncMap{
-		"Deref": func(i *int) int { return *i },
-	}
-
-	r.SetHTMLTemplate(template.Must(template.New("").Funcs(funcMap).ParseFS(templatesFS, "templates/**/*")))
 
 	r.StaticFS("assets", http.FS(serverRoot))
 

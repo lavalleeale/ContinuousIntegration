@@ -1,0 +1,60 @@
+{{ define "BuildContainer" }}
+<div class="paper min-w-[8.5rem] inline-block align-top text-left">
+  <a
+    href="/build/{{ (index . 0).BuildID }}/container/{{ (index . 0).Id }}"
+    class="text-normal inline-block w-[calc(100%-1.5rem)] cursor-pointer"
+  >
+    {{ (index . 0).Name }}
+  </a>
+  {{ $length := len (index . 0).Log }} {{ if and (ne (index . 0).Code nil) (eq
+  (Deref (index . 0).Code) 0) }}
+  <div
+    class="inline bg-green-500 rounded-2xl float-right h-6 w-6 text-center text-white peer"
+    id="{{ (index . 0).Id }}"
+  >
+    ✓
+  </div>
+  {{ else if ne (index . 0).Code nil }}
+  <div
+    class="inline bg-red-500 rounded-2xl float-right h-6 w-6 text-center text-white peer"
+    id="{{ (index . 0).Id }}"
+  >
+    X
+  </div>
+  {{ else if eq $length 0 }}
+  <div
+    class="inline bg-gray-500 rounded-2xl float-right h-6 w-6 text-center text-white peer"
+    id="{{ (index . 0).Id }}"
+  >
+    ?
+  </div>
+  {{ else }}
+  <div
+    class="inline bg-yellow-500 rounded-2xl float-right h-6 w-6 text-center text-white peer"
+    id="{{ (index . 0).Id }}"
+  >
+    ?
+  </div>
+  {{ end }} {{ if ne (index . 0).Persist nil }}
+  <form
+    class="hidden rounded-2xl float-right h-6 w-6 text-center text-white cursor-pointer peer-[.bg-yellow-500]:inline peer"
+    method="post"
+    action="/build/{{ (index . 0).BuildID }}/container/{{ (index . 0).Id }}/stop"
+  >
+    <button
+      class="fa-sharp fa-solid fa-stop inline text-red-500 hover:text-red-600"
+      type="submit"
+    ></button>
+  </form>
+  <a
+    href="{{ (index . 1).PersistScheme }}://{{ (index . 0).Persist }}.{{ (index . 1).PersistHost }}"
+    target="_blank"
+    class="block"
+    >Preview Link</a
+  >{{end}} {{ $length := len (index . 0).UploadedFiles }} {{ if gt $length 0 }}
+  {{range (index . 0).UploadedFiles}}
+  <p>Uploaded Files:</p>
+  <a class="block" href="/file/{{.ID}}" download="{{.Path}}.tar"> {{.Path}} </a>
+  {{end}} {{ end }}
+</div>
+{{ end }}

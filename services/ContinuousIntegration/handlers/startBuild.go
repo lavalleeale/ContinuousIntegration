@@ -62,7 +62,7 @@ func StartBuild(c *gin.Context) {
 		authData = []string{"x-access-token", token}
 	}
 
-	build, err := lib.StartBuild(repo, buildData, authData)
+	build, _, err := lib.StartBuild(repo, buildData, authData)
 	if err != nil {
 		log.Println(err)
 		c.Redirect(http.StatusFound, "/")

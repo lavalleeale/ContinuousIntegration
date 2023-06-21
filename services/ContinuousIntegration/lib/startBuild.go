@@ -32,7 +32,7 @@ type BuildData struct {
 	} `json:"containers"`
 }
 
-func StartBuild(repo db.Repo, buildData BuildData, auth []string) (db.Build, error) {
+func StartBuild(repo db.Repo, buildData BuildData, auth []string) (db.Build, []db.ContainerGraphEdge, error) {
 	build := db.Build{RepoID: repo.ID, Containers: make([]db.Container,
 		len(buildData.Containers)), GitConfig: ""}
 
@@ -97,14 +97,14 @@ func StartBuild(repo db.Repo, buildData BuildData, auth []string) (db.Build, err
 			for _, need := range *container.Needs {
 				needed, err := d.GetVertex(need)
 				if err != nil {
-					return db.Build{}, err
+					return db.Build{}, nil, err
 				}
 				if (needed.(*db.Container)).Persist != nil {
-					return db.Build{}, fmt.Errorf("%s needs %s but %s is marked as persist", container.ID, need, need)
+					return db.Build{}, nil, fmt.Errorf("%s needs %s but %s is marked as persist", container.ID, need, need)
 				}
 				err = d.AddEdge(need, container.ID)
 				if err != nil {
-					return db.Build{}, err
+					return db.Build{}, nil, err
 				}
 			}
 			if container.NeededFiles != nil {
@@ -125,18 +125,18 @@ func StartBuild(repo db.Repo, buildData BuildData, auth []string) (db.Build, err
 						}
 					}
 					if !found {
-						return db.Build{}, fmt.Errorf("%s needs file from %s however %s was not found in acestors", container.ID, split[0], split[0])
+						return db.Build{}, nil, fmt.Errorf("%s needs file from %s however %s was not found in acestors", container.ID, split[0], split[0])
 					}
 				}
 			}
 		} else if container.NeededFiles != nil {
-			return db.Build{}, fmt.Errorf("%s needs files but does not have acestors", container.ID)
+			return db.Build{}, nil, fmt.Errorf("%s needs files but does not have acestors", container.ID)
 		}
 	}
 
 	err := db.Db.Create(&build).Error
 	if err != nil {
-		return db.Build{}, fmt.Errorf("failed to create build")
+		return db.Build{}, nil, fmt.Errorf("failed to create build")
 	}
 
 	edges := make([]db.ContainerGraphEdge, 0)
@@ -147,13 +147,13 @@ func StartBuild(repo db.Repo, buildData BuildData, auth []string) (db.Build, err
 	if len(edges) != 0 {
 		tx := db.Db.Create(&edges)
 		if tx.Error != nil {
-			return db.Build{}, fmt.Errorf("failed to create build")
+			return db.Build{}, nil, fmt.Errorf("failed to create build")
 		}
 	}
 
 	repoUrl, err := url.Parse(repo.Url)
 	if err != nil {
-		return db.Build{}, fmt.Errorf("unable to parse repo url %s", repo.Url)
+		return db.Build{}, nil, fmt.Errorf("unable to parse repo url %s", repo.Url)
 	}
 	go (func() {
 		var wg sync.WaitGroup
@@ -179,7 +179,7 @@ func StartBuild(repo db.Repo, buildData BuildData, auth []string) (db.Build, err
 			panic(err)
 		}
 	})()
-	return build, nil
+	return build, edges, nil
 }
 
 func treeWalk(d *dag.DAG, startNode db.Container, a *[]db.ContainerGraphEdge) {
