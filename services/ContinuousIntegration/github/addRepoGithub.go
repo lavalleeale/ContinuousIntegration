@@ -1,4 +1,4 @@
-package handlers
+package github
 
 import (
 	"context"
@@ -48,4 +48,31 @@ func AddRepoGithub(c *gin.Context) {
 		}
 	}
 	c.Redirect(http.StatusFound, "/")
+}
+
+func AddRepoGithhubPage(c *gin.Context) {
+	var user db.User
+	repos := map[int64][]*github.Repository{}
+	if lib.GetUser(c, &user) {
+		for _, v := range user.InstallationIds {
+			client := github.NewClient(&http.Client{
+				Transport: ghinstallation.NewFromAppsTransport(lib.Itr, v),
+				Timeout:   time.Second * 30,
+			})
+			installRepos, _, err := client.Apps.ListRepos(context.TODO(), &github.ListOptions{})
+			if err != nil {
+				log.Println(err)
+				c.Redirect(http.StatusFound, "/")
+				return
+			}
+			repos[v] = installRepos
+		}
+		if len(repos) == 0 {
+			c.Redirect(http.StatusFound, lib.AppInstallUrl)
+			return
+		}
+		c.HTML(http.StatusOK, "addRepoGithub", repos)
+	} else {
+		c.Redirect(http.StatusFound, "/login")
+	}
 }

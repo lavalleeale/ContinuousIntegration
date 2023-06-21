@@ -3,6 +3,7 @@ package lib
 import (
 	"context"
 	"fmt"
+	"math/rand"
 	"net/url"
 	"strings"
 	"sync"
@@ -21,6 +22,7 @@ type BuildData struct {
 		Needs       *[]string          `json:"needs,omitempty"`
 		NeededFiles *[]string          `json:"neededFiles,omitempty"`
 		Uploads     *[]string          `json:"uploads,omitempty"`
+		Persist     *bool              `json:"persist,omitempty"`
 		Services    *map[string]struct {
 			Steps       *[]string          `json:"steps,omitempty"`
 			Environment *map[string]string `json:"environment,omitempty"`
@@ -41,10 +43,16 @@ func StartBuild(repo db.Repo, buildData BuildData, auth []string) (db.Build, err
 	d := dag.NewDAG()
 
 	for index, container := range buildData.Containers {
+		var persist *string
+		if container.Persist != nil && *container.Persist {
+			persistString := fmt.Sprintf("%x", rand.Uint64())
+			persist = &persistString
+		}
 		savedContainer := db.Container{
 			Name:    container.ID,
 			Command: strings.Join(container.Steps, " && "),
 			Image:   container.Image,
+			Persist: persist,
 		}
 		if container.Environment != nil {
 			environment := make([]string, 0)
@@ -87,7 +95,14 @@ func StartBuild(repo db.Repo, buildData BuildData, auth []string) (db.Build, err
 	for index, container := range buildData.Containers {
 		if container.Needs != nil {
 			for _, need := range *container.Needs {
-				err := d.AddEdge(need, container.ID)
+				needed, err := d.GetVertex(need)
+				if err != nil {
+					return db.Build{}, err
+				}
+				if (needed.(*db.Container)).Persist != nil {
+					return db.Build{}, fmt.Errorf("%s needs %s but %s is marked as persist", container.ID, need, need)
+				}
+				err = d.AddEdge(need, container.ID)
 				if err != nil {
 					return db.Build{}, err
 				}

@@ -1,16 +1,12 @@
 package handlers
 
 import (
-	"context"
 	"errors"
-	"log"
 	"net/http"
+	"os"
 	"strconv"
-	"time"
 
-	"github.com/bradleyfalzon/ghinstallation"
 	"github.com/gin-gonic/gin"
-	"github.com/google/go-github/github"
 	"github.com/lavalleeale/ContinuousIntegration/lib/db"
 	"github.com/lavalleeale/ContinuousIntegration/services/ContinuousIntegration/lib"
 	"gorm.io/gorm"
@@ -38,103 +34,78 @@ func LoginPage(c *gin.Context) {
 func RepoPage(c *gin.Context) {
 	var user db.User
 
-	if !lib.GetUser(c, &user) {
-		c.Redirect(http.StatusFound, "/login")
-		return
+	if lib.GetUser(c, &user) {
+		repoId, err := strconv.Atoi(c.Param("repoId"))
+		if err != nil {
+			c.Redirect(http.StatusFound, "/")
+		}
+
+		repo := db.Repo{ID: uint(repoId)}
+
+		tx := db.Db.Preload("Builds").First(&repo)
+
+		if tx.Error == nil && repo.OrganizationID == user.OrganizationID {
+			c.HTML(http.StatusOK, "repo", repo)
+			return
+		}
 	}
-
-	repoId, err := strconv.Atoi(c.Param("repoId"))
-	if err != nil {
-		c.Redirect(http.StatusFound, "/")
-	}
-
-	repo := db.Repo{ID: uint(repoId), OrganizationID: user.OrganizationID}
-
-	tx := db.Db.Preload("Builds").Where(&repo, "id", "OrganizationID").First(&repo)
-
-	if tx.Error != nil && errors.Is(tx.Error, gorm.ErrRecordNotFound) {
-		c.Redirect(http.StatusFound, "/")
-	} else {
-		c.HTML(http.StatusOK, "repo", repo)
-	}
+	c.Redirect(http.StatusFound, "/")
 }
 
 func BuildPage(c *gin.Context) {
 	var user db.User
 
-	if !lib.GetUser(c, &user) {
-		c.Redirect(http.StatusFound, "/login")
-		return
-	}
+	if lib.GetUser(c, &user) {
 
-	buildId, err := strconv.Atoi(c.Param("buildId"))
-	if err != nil {
-		c.Redirect(http.StatusFound, "/")
-	}
+		buildId, err := strconv.Atoi(c.Param("buildId"))
+		if err == nil {
 
-	build := db.Build{ID: uint(buildId), Repo: db.Repo{OrganizationID: user.OrganizationID}}
-	tx := db.Db.Preload("Repo").Preload("Containers").Preload("Containers.UploadedFiles", func(db *gorm.DB) *gorm.DB {
-		return db.Select("id", "path", "container_id")
-	}).Where(&build, "id", "repo.organizationID").First(&build)
+			build := db.Build{ID: uint(buildId), Repo: db.Repo{OrganizationID: user.OrganizationID}}
+			tx := db.Db.Preload("Repo").Preload("Containers").Preload(
+				"Containers.UploadedFiles", func(db *gorm.DB) *gorm.DB {
+					return db.Select("id", "path", "container_id")
+				}).First(&build)
 
-	if err != nil || build.Repo.OrganizationID != user.OrganizationID {
-		c.Redirect(http.StatusFound, "/")
-		return
+			if err == nil && build.Repo.OrganizationID == user.OrganizationID {
+				if tx.Error == nil || !errors.Is(tx.Error, gorm.ErrRecordNotFound) {
+					buildPageData := BuildPageData{Build: build, PersistHost: os.Getenv("PERSIST_HOST")}
+					if os.Getenv("APP_ENV") == "production" {
+						buildPageData.PersistScheme = "https"
+					} else {
+						buildPageData.PersistScheme = "http"
+					}
+					c.HTML(http.StatusOK, "build", buildPageData)
+					return
+				}
+			}
+		}
 	}
-
-	if tx.Error != nil && errors.Is(tx.Error, gorm.ErrRecordNotFound) {
-		c.Redirect(http.StatusFound, "/")
-	} else {
-		c.HTML(http.StatusOK, "build", build)
-	}
+	c.Redirect(http.StatusFound, "/")
 }
 
 func ContainerPage(c *gin.Context) {
 	var user db.User
 
-	lib.GetUser(c, &user)
-
-	containerId, err := strconv.Atoi(c.Param("containerId"))
-	if err != nil {
-		c.Redirect(http.StatusFound, "/")
-	}
-
-	container := db.Container{Id: uint(containerId), Build: db.Build{
-		Repo: db.Repo{OrganizationID: user.OrganizationID},
-	}}
-
-	db.Db.Preload("Build.Repo").Where(&container, "id", "Build.Repo.OrganizationID").First(&container)
-
-	if container.Build.Repo.OrganizationID == user.OrganizationID {
-		c.HTML(http.StatusOK, "container", container)
-	} else {
-		c.Redirect(http.StatusFound, "/")
-	}
-}
-
-func AddRepoGithhubPage(c *gin.Context) {
-	var user db.User
-	repos := map[int64][]*github.Repository{}
 	if lib.GetUser(c, &user) {
-		for _, v := range user.InstallationIds {
-			client := github.NewClient(&http.Client{
-				Transport: ghinstallation.NewFromAppsTransport(lib.Itr, v),
-				Timeout:   time.Second * 30,
-			})
-			installRepos, _, err := client.Apps.ListRepos(context.TODO(), &github.ListOptions{})
-			if err != nil {
-				log.Println(err)
-				c.Redirect(http.StatusFound, "/")
-				return
-			}
-			repos[v] = installRepos
+		containerId, err := strconv.Atoi(c.Param("containerId"))
+		if err != nil {
+			c.Redirect(http.StatusFound, "/")
 		}
-		if len(repos) == 0 {
-			c.Redirect(http.StatusFound, lib.AppInstallUrl)
+
+		container := db.Container{Id: uint(containerId)}
+
+		db.Db.Preload("Build.Repo").First(&container)
+
+		if container.Build.Repo.OrganizationID == user.OrganizationID {
+			c.HTML(http.StatusOK, "container", container)
 			return
 		}
-		c.HTML(http.StatusOK, "addRepoGithub", repos)
-	} else {
-		c.Redirect(http.StatusFound, "/login")
 	}
+	c.Redirect(http.StatusFound, "/")
+}
+
+type BuildPageData struct {
+	Build         db.Build
+	PersistScheme string
+	PersistHost   string
 }

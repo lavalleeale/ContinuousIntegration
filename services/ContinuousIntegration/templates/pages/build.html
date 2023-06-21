@@ -1,48 +1,63 @@
 {{ define "build" }} {{ template "Header" "build" }}
 <div class="paper w-[calc(100% - 1px)] m-10 overflow-auto">
-  <h3 class="text-3xl mb-4">Build {{ .ID }}</h3>
+  <h3 class="text-3xl mb-4">Build {{ .Build.ID }}</h3>
   <h3 class="text-2xl mb-4">
-    Repo <a href="/repo/{{ .Repo.ID }}">{{ .Repo.Url }}</a>
+    Repo <a href="/repo/{{ .Build.Repo.ID }}">{{ .Build.Repo.Url }}</a>
   </h3>
-  <h3 class="text-2xl mb-4" id="status">Status: {{ .Status }}</h3>
+  <h3 class="text-2xl mb-4" id="status">Status: {{ .Build.Status }}</h3>
   <h4 class="text-xl">Containers:</h4>
-  {{ range .Containers }}
+  {{ range .Build.Containers }}
   <div class="paper min-w-[10%] inline-block align-top">
     <a
       href="/build/{{ .BuildID }}/container/{{ .Id }}"
-      class="text-normal inline-block w-full cursor-pointer"
+      class="text-normal inline-block w-[calc(100%-1.5rem)] cursor-pointer"
     >
-      {{ .Name }} {{ $length := len .Log }} {{ if eq $length 0 }}
-      <div
-        class="inline bg-gray-500 rounded-2xl float-right h-6 w-6 text-center text-white"
-        id="{{ .Id }}"
-      >
-        ?
-      </div>
-      {{ else if not .Code }}
-      <div
-        class="inline bg-yellow-500 rounded-2xl float-right h-6 w-6 text-center text-white"
-        id="{{ .Id }}"
-      >
-        ?
-      </div>
-      {{ else if eq (Deref .Code) 0 }}
-      <div
-        class="inline bg-green-500 rounded-2xl float-right h-6 w-6 text-center text-white"
-        id="{{ .Id }}"
-      >
-        ✓
-      </div>
-      {{ else }}
-      <div
-        class="inline bg-red-500 rounded-2xl float-right h-6 w-6 text-center text-white"
-        id="{{ .Id }}"
-      >
-        X
-      </div>
-      {{ end }}
+      <p>{{ .Name }}</p>
     </a>
-    {{ $length := len .UploadedFiles }} {{ if gt $length 0 }} {{range
+    {{ $length := len .Log }} {{ if and (ne .Code nil) (eq (Deref .Code) 0) }}
+    <div
+      class="inline bg-green-500 rounded-2xl float-right h-6 w-6 text-center text-white peer"
+      id="{{ .Id }}"
+    >
+      ✓
+    </div>
+    {{ else if ne .Code nil }}
+    <div
+      class="inline bg-red-500 rounded-2xl float-right h-6 w-6 text-center text-white peer"
+      id="{{ .Id }}"
+    >
+      X
+    </div>
+    {{ else if eq $length 0 }}
+    <div
+      class="inline bg-gray-500 rounded-2xl float-right h-6 w-6 text-center text-white peer"
+      id="{{ .Id }}"
+    >
+      ?
+    </div>
+    {{ else }}
+    <div
+      class="inline bg-yellow-500 rounded-2xl float-right h-6 w-6 text-center text-white peer"
+      id="{{ .Id }}"
+    >
+      ?
+    </div>
+    {{ end }} {{ if ne .Persist nil }}
+    <form
+      class="hidden rounded-2xl float-right h-6 w-6 text-center text-white cursor-pointer peer-[.bg-yellow-500]:inline peer"
+      method="post"
+      action="/build/{{ .BuildID }}/container/{{ .Id }}/stop"
+    >
+      <button
+        class="fa-sharp fa-solid fa-stop inline text-red-500 hover:text-red-600"
+        type="submit"
+      ></button>
+    </form>
+    <a
+      href="{{ $.PersistScheme }}://{{ .Persist }}.{{ $.PersistHost }}"
+      target="_blank"
+      >Preview Link</a
+    >{{end}} {{ $length := len .UploadedFiles }} {{ if gt $length 0 }} {{range
     .UploadedFiles}}
     <p>Uploaded Files:</p>
     <a class="block" href="/file/{{.ID}}" download="{{.Path}}.tar">

@@ -56,7 +56,7 @@ func HandleContainerWs(c *gin.Context) {
 		return
 	}
 
-	if len(container.Log) != 0 {
+	if container.Code != nil {
 		socket.WriteJSON(gin.H{"type": "log", "log": container.Log})
 		return
 	}

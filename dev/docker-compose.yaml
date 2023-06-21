@@ -60,6 +60,7 @@ services:
       REDIS_URL: redis://redis:6379
       RUNTIME: sysbox-runc
       REGISTRY_URL: registry.dev.lan
+      PERSIST_HOST: localhost
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
     depends_on:
@@ -67,18 +68,23 @@ services:
         condition: service_healthy
     profiles:
       - ci
-  gitea:
-    image: gitea/gitea
+  proxy:
+    build:
+      context: ../services/proxy
+      dockerfile: Dockerfile
+    ports:
+      - 80:80
     environment:
-      - USER_UID=1000
-      - USER_GID=1000
-    volumes:
-      - ./gitea:/data
-      - /etc/timezone:/etc/timezone:ro
-      - /etc/localtime:/etc/localtime:ro
+      - ADDRESS=:http
+      - MAIN_HOST=continuous_integration:8080
+      - PROXY_HOST=10.0.1.18
+      - REDIS_URL=redis://redis:6379
+    profiles:
+      - proxy
+  gitea:
+    image: pascalgn/git-server-docker
     ports:
       - "3000:3000"
-      - "222:22"
 volumes:
   registry:
   db:

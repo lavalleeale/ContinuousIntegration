@@ -54,6 +54,9 @@ func HandleBuildWs(c *gin.Context) {
 		return
 	}
 
+	pubsub := lib.Rdb.PSubscribe(context.TODO(), fmt.Sprintf("build.%d.*", numId))
+	defer pubsub.Close()
+	ch := pubsub.Channel()
 	build := db.Build{ID: uint(numId), Repo: db.Repo{OrganizationID: user.OrganizationID}}
 	err = db.Db.Preload("Containers").Preload("Repo").First(&build).Error
 
@@ -96,12 +99,6 @@ func HandleBuildWs(c *gin.Context) {
 	for _, cont := range containers {
 		socket.WriteJSON(gin.H{"type": "create", "id": cont.Labels["containerId"]})
 	}
-
-	pubsub := lib.Rdb.PSubscribe(context.TODO(), fmt.Sprintf("build.%d.*", build.ID))
-
-	defer pubsub.Close()
-
-	ch := pubsub.Channel()
 
 outer:
 	for msg := range ch {

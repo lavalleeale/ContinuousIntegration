@@ -3,12 +3,12 @@ package lib
 import (
 	"bytes"
 	"context"
-	"encoding/binary"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"log"
+	"net"
 	"os"
 	"strings"
 	"sync"
@@ -18,14 +18,14 @@ import (
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/network"
+	"github.com/docker/go-connections/nat"
 	"github.com/lavalleeale/ContinuousIntegration/lib/db"
 	sessionseal "github.com/lavalleeale/SessionSeal"
 	"golang.org/x/exp/slices"
-	"gorm.io/gorm"
 )
 
-func failEarly(buildID uint, cont *db.Container, containers []container.CreateResponse,
-	network types.NetworkCreateResponse, reason string, mainContainer *container.CreateResponse,
+func finish(buildID uint, cont *db.Container, containers []container.CreateResponse,
+	network types.NetworkCreateResponse, code int, currentLog string, mainContainer *container.CreateResponse,
 ) {
 	for _, container := range containers {
 		if container.ID != "" {
@@ -40,10 +40,12 @@ func failEarly(buildID uint, cont *db.Container, containers []container.CreateRe
 		})
 	}
 	DockerCli.NetworkRemove(context.TODO(), network.ID)
-	code := 255
-	db.Db.Model(&cont).Updates(map[string]interface{}{
-		"log": gorm.Expr("log || ?", reason), "code": &code,
-	})
+	if len(currentLog) > 100000 {
+		db.Db.Model(&cont).Updates(db.Container{Log: strings.ToValidUTF8(currentLog[0:99900]+
+			"\nTruncated due to length over 100k chars", ""), Code: &code})
+	} else {
+		db.Db.Model(&cont).Updates(db.Container{Log: strings.ToValidUTF8(currentLog, ""), Code: &code})
+	}
 	err := Rdb.Publish(context.TODO(), fmt.Sprintf(
 		"build.%d.container.%d.die", cont.BuildID, cont.Id), code).Err()
 	if err != nil {
@@ -52,7 +54,9 @@ func failEarly(buildID uint, cont *db.Container, containers []container.CreateRe
 }
 
 func BuildContainer(repoUrl string, buildID uint, cont db.Container, organizationId string, wg *sync.WaitGroup, failed *bool) {
-	defer wg.Done()
+	if cont.Persist == nil {
+		defer wg.Done()
+	}
 	build := db.Build{ID: buildID}
 
 	db.Db.Preload("Containers.UploadedFiles").First(&build)
@@ -65,6 +69,8 @@ func BuildContainer(repoUrl string, buildID uint, cont db.Container, organizatio
 	}
 
 	serviceContainerResponses := make([]container.CreateResponse, len(cont.ServiceContainers))
+
+	var logStringBuilder strings.Builder
 
 	for i, v := range cont.ServiceContainers {
 		// Create a container
@@ -113,22 +119,24 @@ func BuildContainer(repoUrl string, buildID uint, cont db.Container, organizatio
 		msgs, errs := DockerCli.Events(ctx, types.EventsOptions{
 			Filters: filters.NewArgs(filters.Arg("container", response.ID), filters.Arg("event", "health_status")),
 		})
-	outer:
+	serviceContainerWaiter:
 		for {
 			select {
 			case err := <-errs:
-				log.Println(err)
 				close()
+				log.Println(err)
+				logStringBuilder.WriteString(fmt.Sprintf(
+					"Service container %s failed to be healthy", v.Name))
 				if errors.Is(err, context.DeadlineExceeded) {
-					failEarly(buildID, &cont, serviceContainerResponses, networkResp,
-						fmt.Sprintf("Service container %s failed to be healthy", v.Name), &container.CreateResponse{})
+					finish(buildID, &cont, serviceContainerResponses,
+						networkResp, 255, logStringBuilder.String(), &container.CreateResponse{})
 					*failed = true
 					return
 				}
 			case msg := <-msgs:
 				if msg.Action == "health_status: healthy" {
 					close()
-					break outer
+					break serviceContainerWaiter
 				}
 			}
 		}
@@ -144,6 +152,7 @@ func BuildContainer(repoUrl string, buildID uint, cont db.Container, organizatio
 	dockerAuthData, _ := json.Marshal(dockerAuth)
 
 	mainEnv := []string{
+		"PORT=80",
 		"DOCKER_USER=token", fmt.Sprintf("DOCKER_PASS=%s",
 			sessionseal.Seal(os.Getenv("JWT_SECRET"), dockerAuthData)),
 		fmt.Sprintf("REGISTRY=%s", os.Getenv("REGISTRY_URL")),
@@ -158,8 +167,16 @@ func BuildContainer(repoUrl string, buildID uint, cont db.Container, organizatio
 		Env:    mainEnv,
 		Tty:    false,
 		Labels: map[string]string{"buildId": fmt.Sprint(buildID), "containerId": fmt.Sprint(cont.Id)},
+		ExposedPorts: nat.PortSet{
+			"80/tcp": struct{}{},
+		},
 	}, &container.HostConfig{
 		Runtime: os.Getenv("RUNTIME"),
+		PortBindings: nat.PortMap{
+			"80/tcp": []nat.PortBinding{
+				{},
+			},
+		},
 	}, &network.NetworkingConfig{
 		EndpointsConfig: map[string]*network.EndpointSettings{
 			networkResp.ID: {
@@ -190,9 +207,24 @@ func BuildContainer(repoUrl string, buildID uint, cont db.Container, organizatio
 		panic(err)
 	}
 
-	var logStringBuilder strings.Builder
+	db.Db.Model(&cont).Update("log", "Started!\n")
+	var allowedTime time.Duration
+	if cont.Persist != nil {
+		allowedTime = time.Hour * 24 * 7
 
-	response, err := DockerCli.ContainerAttach(context.TODO(), mainContainerResponse.ID, types.ContainerAttachOptions{
+		inspectionData, err := DockerCli.ContainerInspect(context.TODO(), mainContainerResponse.ID)
+		if err != nil {
+			// Never expect docker to error
+			panic(err)
+		}
+		Rdb.Set(context.TODO(), *cont.Persist, inspectionData.NetworkSettings.Ports["80/tcp"][0].HostPort, allowedTime)
+	} else {
+		allowedTime = time.Minute * 30
+	}
+
+	ctx, close := context.WithTimeout(context.TODO(), allowedTime)
+
+	response, err := DockerCli.ContainerAttach(ctx, mainContainerResponse.ID, types.ContainerAttachOptions{
 		Stream: true, Stdout: true, Logs: true, Stderr: true,
 	})
 	if err != nil {
@@ -200,32 +232,39 @@ func BuildContainer(repoUrl string, buildID uint, cont db.Container, organizatio
 		panic(err)
 	}
 
-	defer response.Close()
+	go func() {
+		<-ctx.Done()
+		response.Close()
+	}()
 
 	Rdb.Publish(context.TODO(), fmt.Sprintf("build.%d.container.%d.create", build.ID, cont.Id), "")
 
-test:
+	output, errCh := ReadAttach(response.Reader)
+
+readLoop:
 	for {
-		p := make([]byte, 1)
-		_, err := response.Reader.Read(p)
-		response.Reader.Discard(3)
-		var length uint32
-		binary.Read(response.Reader, binary.BigEndian, &length)
-		if err != nil {
+		select {
+		case err := <-errCh:
 			if err == io.EOF {
-				break test
+				break readLoop
+			} else if errors.Is(err, net.ErrClosed) {
+				close()
+				logStringBuilder.WriteString("Container dealine exceeded")
+				finish(buildID, &cont, serviceContainerResponses, networkResp, 255, logStringBuilder.String(),
+					&mainContainerResponse)
+				*failed = true
+				return
 			}
-			log.Println(err)
-			os.Exit(1)
-		}
-		p = make([]byte, length)
-		n, _ := response.Reader.Read(p)
-		logStringBuilder.Write(p[:n])
-		err = Rdb.Publish(context.TODO(), fmt.Sprintf("build.%d.container.%d.log", build.ID, cont.Id), p[:n]).Err()
-		if err != nil {
 			panic(err)
+		case outputData := <-output:
+			logStringBuilder.Write(bytes.ReplaceAll(outputData, []byte{0}, []byte{}))
+			err = Rdb.Publish(context.TODO(), fmt.Sprintf("build.%d.container.%d.log", build.ID, cont.Id), outputData).Err()
+			if err != nil {
+				panic(err)
+			}
 		}
 	}
+	close()
 
 	t, err := DockerCli.ContainerInspect(context.TODO(), mainContainerResponse.ID)
 	if err != nil {
@@ -233,17 +272,12 @@ test:
 		panic(err)
 	}
 
-	if logStringBuilder.Len() > 100000 {
-		db.Db.Model(&cont).Updates(db.Container{Log: logStringBuilder.String()[0:99900] +
-			"\nTruncated due to length over 100k chars", Code: &t.State.ExitCode})
-	} else {
-		db.Db.Model(&cont).Updates(db.Container{Log: logStringBuilder.String(), Code: &t.State.ExitCode})
-	}
 	for _, file := range cont.UploadedFiles {
 		reader, _, err := DockerCli.CopyFromContainer(context.TODO(), mainContainerResponse.ID, file.Path)
 		if err != nil {
-			failEarly(buildID, &cont, serviceContainerResponses, networkResp,
-				fmt.Sprintf("Failed to upload file (%s)", file.Path), &mainContainerResponse)
+			logStringBuilder.WriteString(fmt.Sprintf("Failed to upload file (%s)", file.Path))
+			finish(buildID, &cont, serviceContainerResponses, networkResp, 255, logStringBuilder.String(),
+				&mainContainerResponse)
 			*failed = true
 			return
 		}
@@ -254,24 +288,13 @@ test:
 		}
 		db.Db.Model(&file).Update("bytes", bytes)
 	}
-	DockerCli.ContainerRemove(context.TODO(), mainContainerResponse.ID, types.ContainerRemoveOptions{
-		Force: true,
-	})
-	for _, serviceContainerResponse := range serviceContainerResponses {
-		DockerCli.ContainerRemove(context.TODO(), serviceContainerResponse.ID, types.ContainerRemoveOptions{
-			Force: true,
-		})
-	}
-	DockerCli.NetworkRemove(context.TODO(), networkResp.ID)
 
-	err = Rdb.Publish(context.TODO(), fmt.Sprintf("build.%d.container.%d.die", build.ID, cont.Id), t.State.ExitCode).Err()
-	if err != nil {
-		panic(err)
-	}
+	finish(buildID, &cont, serviceContainerResponses, networkResp, t.State.ExitCode, logStringBuilder.String(),
+		&mainContainerResponse)
 
 	if t.State.ExitCode == 0 {
 		var edges []db.ContainerGraphEdge
-		db.Db.Where(db.ContainerGraphEdge{FromID: uint(cont.Id)}, "FromID").
+		db.Db.Where("from_id = ?", uint(cont.Id)).
 			Preload("To.EdgesToward.From").
 			Preload("To.NeededFiles").
 			Preload("To.UploadedFiles").
@@ -283,7 +306,9 @@ test:
 					break
 				}
 				if index == len(edge.To.EdgesToward)-1 {
-					wg.Add(1)
+					if edge.To.Persist == nil {
+						wg.Add(1)
+					}
 					go BuildContainer(repoUrl, buildID, edge.To, organizationId, wg, failed)
 				}
 			}

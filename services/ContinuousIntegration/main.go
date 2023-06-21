@@ -15,6 +15,7 @@ import (
 	"github.com/joho/godotenv"
 	"github.com/lavalleeale/ContinuousIntegration/lib/auth"
 	"github.com/lavalleeale/ContinuousIntegration/lib/db"
+	"github.com/lavalleeale/ContinuousIntegration/services/ContinuousIntegration/github"
 	"github.com/lavalleeale/ContinuousIntegration/services/ContinuousIntegration/handlers"
 	"github.com/lavalleeale/ContinuousIntegration/services/ContinuousIntegration/lib"
 	"github.com/lavalleeale/ContinuousIntegration/services/ContinuousIntegration/ws"
@@ -56,13 +57,13 @@ func main() {
 
 	r.Use(lib.Session)
 
-	r.POST("/github", handlers.HandleWebhook)
+	r.POST("/github", github.HandleWebhook)
 
-	r.GET("/callback", handlers.GithubCallback)
+	r.GET("/callback", github.GithubCallback)
 
-	r.GET("/addRepoGithub", handlers.AddRepoGithhubPage)
+	r.GET("/addRepoGithub", github.AddRepoGithhubPage)
 
-	r.POST("/addRepoGithub", handlers.AddRepoGithub)
+	r.POST("/addRepoGithub", github.AddRepoGithub)
 
 	funcMap := template.FuncMap{
 		"Deref": func(i *int) int { return *i },
@@ -93,6 +94,12 @@ func main() {
 	r.GET("/file/:fileId", handlers.DownloadFile)
 
 	r.POST("/deleteRepo", handlers.DeleteRepo)
+
+	r.GET("/unknownProxy", func(ctx *gin.Context) {
+		ctx.String(http.StatusNotFound, "Unknown Proxy")
+	})
+
+	r.POST("/build/:buildId/container/:containerId/stop", handlers.StopContainer)
 
 	srv := &http.Server{
 		Addr:    ":8080",

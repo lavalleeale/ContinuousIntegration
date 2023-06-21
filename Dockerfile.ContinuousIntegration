@@ -8,7 +8,9 @@ COPY services/ContinuousIntegration/package.json services/ContinuousIntegration/
 
 RUN yarn install --frozen-lockfile
 
-COPY services/ContinuousIntegration .
+COPY services/ContinuousIntegration/tailwind.config.js ./
+COPY services/ContinuousIntegration/assets ./assets
+COPY services/ContinuousIntegration/templates ./templates
 
 RUN yarn build
 
