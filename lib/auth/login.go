@@ -1,19 +1,20 @@
 package auth
 
 import (
-	"errors"
 	"fmt"
 
 	"github.com/lavalleeale/ContinuousIntegration/lib/db"
 	"golang.org/x/crypto/bcrypt"
-	"gorm.io/gorm"
 )
 
 func Login(username string, password string, allowSignup bool) (db.User, error) {
 	user := db.User{Username: username}
-	tx := db.Db.First(&user)
+	tx := db.Db.Limit(1).Find(&user)
 
-	if tx.Error != nil && errors.Is(tx.Error, gorm.ErrRecordNotFound) {
+	if tx.Error != nil {
+		return db.User{}, tx.Error
+	}
+	if tx.RowsAffected == 0 {
 		if !allowSignup {
 			return db.User{}, &UserNotFoundError{Username: username}
 		}
