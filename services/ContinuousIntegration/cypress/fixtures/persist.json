@@ -4,7 +4,10 @@
             "id": "persist",
             "image": "base",
             "steps": [
-                "node -e \"require('http').createServer(function (req, res) { res.end('OK'); }).listen(process.env.PORT);\""
+                {
+                    "type": "shell",
+                    "command": "node -e \"require('http').createServer(function (req, res) { res.end('OK'); }).listen(process.env.PORT);\""
+                }
             ],
             "persist": true
         }

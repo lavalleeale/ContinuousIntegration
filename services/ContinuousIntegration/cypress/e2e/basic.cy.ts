@@ -120,7 +120,7 @@ describe("Builds", () => {
     });
     cy.get("#add-build").click({ force: true });
     cy.get(".bg-yellow-500", { timeout: 20000 }).should("be.visible");
-    cy.wait(1000);
+    cy.wait(5000);
     cy.contains<HTMLElement>("Preview Link").then(($a) => {
       const href = $a.prop("href");
       cy.request(href).its("body").should("include", "OK");

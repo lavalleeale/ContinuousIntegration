@@ -78,10 +78,12 @@ func HandleCheckRun(client *github.Client, event *github.CheckRunEvent, token st
 			*event.Repo.Name, *event.CheckRun.ID, "ci.json not valid", err.Error(), completed, nil, &failure)
 		return
 	}
-	for index, v := range buildData.Containers {
-		buildData.Containers[index].Steps = append([]string{
-			fmt.Sprintf("git checkout %s", *event.CheckRun.HeadSHA),
-		}, v.Steps...)
+	for _, v := range buildData.Containers {
+		for _, step := range v.Steps {
+			if step.Type == "clone" {
+				step.Sha = *event.CheckRun.HeadSHA
+			}
+		}
 	}
 	if err != nil {
 		// This should never fail since the webhook is directly from github and we know that our installation must be valid, and the panic will not be facing users

@@ -16,7 +16,7 @@ type BuildData struct {
 	GitConfig  *string `json:"gitConfig"`
 	Containers []struct {
 		ID          string             `json:"id"`
-		Steps       []string           `json:"steps"`
+		Steps       []TemplateData     `json:"steps"`
 		Image       string             `json:"image"`
 		Environment *map[string]string `json:"environment,omitempty"`
 		Needs       *[]string          `json:"needs,omitempty"`
@@ -43,14 +43,25 @@ func StartBuild(repo db.Repo, buildData BuildData, auth []string) (db.Build, []d
 	d := dag.NewDAG()
 
 	for index, container := range buildData.Containers {
+		if len(container.Steps) == 0 {
+			return db.Build{}, nil, fmt.Errorf("container %s has no steps", container.ID)
+		}
 		var persist *string
 		if container.Persist != nil && *container.Persist {
 			persistString := fmt.Sprintf("%x", rand.Uint64())
 			persist = &persistString
 		}
+		steps := make([]string, len(container.Steps))
+		for index, step := range container.Steps {
+			var err error
+			steps[index], err = step.GetString(repo)
+			if err != nil {
+				return db.Build{}, nil, err
+			}
+		}
 		savedContainer := db.Container{
 			Name:    container.ID,
-			Command: strings.Join(container.Steps, " && "),
+			Command: strings.Join(steps, " && "),
 			Image:   container.Image,
 			Persist: persist,
 		}

@@ -161,9 +161,8 @@ func BuildContainer(repoUrl string, buildID uint, cont db.Container, organizatio
 		mainEnv = append(mainEnv, strings.Split(*cont.Environment, ",")...)
 	}
 	mainContainerResponse, err := DockerCli.ContainerCreate(context.TODO(), &container.Config{
-		Image: cont.Image,
-		Cmd: []string{"bash", "-c", fmt.Sprintf("GIT_SSL_NO_VERIFY=1 git clone %s %s /repo && cd /repo && %s",
-			repoUrl, build.GitConfig, cont.Command)},
+		Image:  cont.Image,
+		Cmd:    []string{"bash", "-c", "sleep 1 && " + cont.Command},
 		Env:    mainEnv,
 		Tty:    false,
 		Labels: map[string]string{"buildId": fmt.Sprint(buildID), "containerId": fmt.Sprint(cont.Id)},
