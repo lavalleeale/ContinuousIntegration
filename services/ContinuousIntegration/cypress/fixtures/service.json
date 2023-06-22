@@ -1,0 +1,18 @@
+{
+    "containers": [
+        {
+            "id": "service",
+            "image": "base",
+            "steps": [
+                "echo \"set test HelloWorld\" | redis-cli -h redis",
+                "echo \"get test\" | redis-cli -h redis"
+            ],
+            "services": {
+                "redis": {
+                    "image": "redis",
+                    "healthcheck": "redis-cli ping"
+                }
+            }
+        }
+    ]
+}

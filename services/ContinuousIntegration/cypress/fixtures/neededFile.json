@@ -1,0 +1,27 @@
+{
+    "containers": [
+        {
+            "id": "first",
+            "image": "base",
+            "steps": [
+                "ls"
+            ],
+            "uploads": [
+                "/repo"
+            ]
+        },
+        {
+            "id": "second",
+            "image": "base",
+            "steps": [
+                "find /neededFiles"
+            ],
+            "neededFiles": [
+                "first:/repo"
+            ],
+            "needs": [
+                "first"
+            ]
+        }
+    ]
+}

@@ -1,0 +1,14 @@
+{
+    "containers": [
+        {
+            "id": "environment",
+            "image": "base",
+            "steps": [
+                "echo $DATA"
+            ],
+            "environment": {
+                "DATA": "Hello World"
+            }
+        }
+    ]
+}

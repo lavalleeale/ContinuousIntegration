@@ -1,0 +1,11 @@
+{
+    "containers": [
+        {
+            "id": "single",
+            "image": "base",
+            "steps": [
+                "ls"
+            ]
+        }
+    ]
+}

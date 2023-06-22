@@ -1,0 +1,21 @@
+{
+    "containers": [
+        {
+            "id": "first",
+            "image": "base",
+            "steps": [
+                "ls"
+            ]
+        },
+        {
+            "id": "second",
+            "image": "base",
+            "steps": [
+                "ls"
+            ],
+            "needs": [
+                "first"
+            ]
+        }
+    ]
+}

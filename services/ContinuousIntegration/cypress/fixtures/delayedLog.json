@@ -1,0 +1,13 @@
+{
+    "containers": [
+        {
+            "id": "single",
+            "image": "base",
+            "steps": [
+                "echo first",
+                "sleep 5",
+                "echo second"
+            ]
+        }
+    ]
+}
