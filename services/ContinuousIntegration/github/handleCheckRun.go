@@ -6,7 +6,6 @@ import (
 	"io"
 	"log"
 	"os"
-	"strconv"
 	"strings"
 
 	"github.com/gin-gonic/gin/binding"
@@ -97,15 +96,13 @@ func HandleCheckRun(client *github.Client, event *github.CheckRunEvent, token st
 			*event.Repo.Name, *event.CheckRun.ID, "ci.json not valid", err.Error(), completed, nil, &failure)
 		return
 	}
-	idNames := make(map[uint]string)
 	var markdownBuilder strings.Builder
 	markdownBuilder.WriteString("```mermaid\ngraph LR;\n")
 	for _, v := range build.Containers {
-		idNames[v.Id] = v.Name
-		markdownBuilder.WriteString(fmt.Sprintf("%d(\"%s %s\");\n", v.Id, v.Name, "⏳"))
+		markdownBuilder.WriteString(fmt.Sprintf("%s(\"%s ⏳\");\n", v.Name, v.Name))
 	}
 	for _, v := range edges {
-		markdownBuilder.WriteString(fmt.Sprintf("%d-->%d;\n", v.FromID, v.ToID))
+		markdownBuilder.WriteString(fmt.Sprintf("%s-->%s;\n", v.FromName, v.ToName))
 	}
 	left := len(build.Containers)
 	var detailsUrl string
@@ -129,15 +126,11 @@ func HandleCheckRun(client *github.Client, event *github.CheckRunEvent, token st
 
 	for msg := range containersCh {
 		left--
-		idStr := strings.Split(msg.Channel, ".")[3]
-		id, err := strconv.ParseUint(idStr, 10, 32)
-		if err != nil {
-			panic(err)
-		}
+		name := strings.Split(msg.Channel, ".")[3]
 		if msg.Payload == "0" {
-			markdownBuilder.WriteString(fmt.Sprintf("%s(\"%s %s\");\n", idStr, idNames[uint(id)], "✅"))
+			markdownBuilder.WriteString(fmt.Sprintf("%s(\"%s %s\");\n", name, name, "✅"))
 		} else {
-			markdownBuilder.WriteString(fmt.Sprintf("%s(\"%s %s\");\n", idStr, idNames[uint(id)], "❌"))
+			markdownBuilder.WriteString(fmt.Sprintf("%s(\"%s %s\");\n", name, name, "❌"))
 		}
 		if left == 0 {
 			break

@@ -76,7 +76,7 @@ func main() {
 
 	r.GET("/build/:buildId", handlers.BuildPage)
 
-	r.GET("/build/:buildId/container/:containerId", handlers.ContainerPage)
+	r.GET("/build/:buildId/container/:containerName", handlers.ContainerPage)
 
 	r.GET("/login", handlers.LoginPage)
 	r.POST("/login", handlers.Login)
@@ -86,7 +86,7 @@ func main() {
 	r.POST("/repo/:repoId/build", handlers.StartBuild)
 
 	r.GET("/build/:buildId/containerStatus", ws.HandleBuildWs)
-	r.GET("/build/:buildId/container/:containerId/log", ws.HandleContainerWs)
+	r.GET("/build/:buildId/container/:containerName/log", ws.HandleContainerWs)
 
 	r.GET("/file/:fileId", handlers.DownloadFile)
 
@@ -96,7 +96,7 @@ func main() {
 		ctx.String(http.StatusNotFound, "Unknown Proxy")
 	})
 
-	r.POST("/build/:buildId/container/:containerId/stop", handlers.StopContainer)
+	r.POST("/build/:buildId/container/:containerName/stop", handlers.StopContainer)
 
 	srv := &http.Server{
 		Addr:    ":8080",

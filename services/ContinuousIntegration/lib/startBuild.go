@@ -95,15 +95,15 @@ func StartBuild(repo db.Repo, buildData BuildData, auth []string) (db.Build, []d
 		if container.Uploads != nil {
 			uploadedFiles := make([]db.UploadedFile, len(*container.Uploads))
 			for index, uploadedFile := range *container.Uploads {
-				uploadedFiles[index] = db.UploadedFile{Path: uploadedFile}
+				uploadedFiles[index] = db.UploadedFile{Path: uploadedFile, FromName: container.ID}
 			}
-			savedContainer.UploadedFiles = uploadedFiles
+			savedContainer.FilesUploaded = uploadedFiles
 		}
 		build.Containers[index] = savedContainer
 		d.AddVertex(&build.Containers[index])
 	}
 
-	for index, container := range buildData.Containers {
+	for _, container := range buildData.Containers {
 		if container.Needs != nil {
 			for _, need := range *container.Needs {
 				needed, err := d.GetVertex(need)
@@ -119,6 +119,10 @@ func StartBuild(repo db.Repo, buildData BuildData, auth []string) (db.Build, []d
 				}
 			}
 			if container.NeededFiles != nil {
+				dbContainer, err := d.GetVertex(container.ID)
+				if err != nil {
+					panic(err)
+				}
 				for _, neededFile := range *container.NeededFiles {
 					ancestors, err := d.GetAncestors(container.ID)
 					if err != nil {
@@ -129,8 +133,20 @@ func StartBuild(repo db.Repo, buildData BuildData, auth []string) (db.Build, []d
 					split := strings.Split(neededFile, ":")
 					for k := range ancestors {
 						if k == split[0] {
-							build.Containers[index].NeededFiles = append(
-								build.Containers[index].NeededFiles, db.NeededFile{From: k, FromPath: split[1]})
+							uploadFound := false
+							ancestor := ancestors[k].(*db.Container)
+							for index, uploadedFile := range ancestor.FilesUploaded {
+								if uploadedFile.Path == split[1] {
+									ancestor.FilesUploaded[index].To = append(
+										ancestor.FilesUploaded[index].To, dbContainer.(*db.Container))
+									uploadFound = true
+									break
+								}
+							}
+							if !uploadFound {
+								return db.Build{}, nil, fmt.Errorf("%s needs file %s from %s however %s does not upload %s",
+									container.ID, split[1], split[0], split[0], split[1])
+							}
 							found = true
 							break
 						}
@@ -173,10 +189,10 @@ func StartBuild(repo db.Repo, buildData BuildData, auth []string) (db.Build, []d
 			wg.Add(1)
 			if len(auth) != 0 {
 				repoUrl.User = url.UserPassword(auth[0], auth[1])
-				go BuildContainer(repoUrl.String(), build.ID,
+				go BuildContainer(repoUrl.String(),
 					*container.(*db.Container), repo.OrganizationID, &wg, &failed)
 			} else {
-				go BuildContainer(repo.Url, build.ID, *container.(*db.Container), repo.OrganizationID, &wg, &failed)
+				go BuildContainer(repo.Url, *container.(*db.Container), repo.OrganizationID, &wg, &failed)
 			}
 		}
 		wg.Wait()
@@ -203,8 +219,9 @@ func treeWalk(d *dag.DAG, startNode db.Container, a *[]db.ContainerGraphEdge) {
 		*a = append(
 			*a,
 			db.ContainerGraphEdge{
-				FromID: uint(startNode.Id),
-				ToID:   uint(childNode.(*db.Container).Id),
+				FromName: startNode.Name,
+				ToName:   childNode.(*db.Container).Name,
+				BuildID:  startNode.BuildID,
 			},
 		)
 		treeWalk(d, *childNode.(*db.Container), a)

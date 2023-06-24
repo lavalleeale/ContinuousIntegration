@@ -10,6 +10,7 @@ import (
 	"log"
 	"net"
 	"os"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -21,10 +22,9 @@ import (
 	"github.com/docker/go-connections/nat"
 	"github.com/lavalleeale/ContinuousIntegration/lib/db"
 	sessionseal "github.com/lavalleeale/SessionSeal"
-	"golang.org/x/exp/slices"
 )
 
-func finish(buildID uint, cont *db.Container, containers []container.CreateResponse,
+func finish(cont *db.Container, containers []container.CreateResponse,
 	network types.NetworkCreateResponse, code int, currentLog string, mainContainer *container.CreateResponse,
 ) {
 	for _, container := range containers {
@@ -47,21 +47,18 @@ func finish(buildID uint, cont *db.Container, containers []container.CreateRespo
 		db.Db.Model(&cont).Updates(db.Container{Log: strings.ToValidUTF8(currentLog, ""), Code: &code})
 	}
 	err := Rdb.Publish(context.TODO(), fmt.Sprintf(
-		"build.%d.container.%d.die", cont.BuildID, cont.Id), code).Err()
+		"build.%d.container.%s.die", cont.BuildID, cont.Name), code).Err()
 	if err != nil {
 		panic(err)
 	}
 }
 
-func BuildContainer(repoUrl string, buildID uint, cont db.Container, organizationId string, wg *sync.WaitGroup, failed *bool) {
+func BuildContainer(repoUrl string, cont db.Container, organizationId string, wg *sync.WaitGroup, failed *bool) {
 	if cont.Persist == nil {
 		defer wg.Done()
 	}
-	build := db.Build{ID: buildID}
-
-	db.Db.Preload("Containers.UploadedFiles").First(&build)
 	networkResp, err := DockerCli.NetworkCreate(context.Background(),
-		fmt.Sprintf("%d", cont.Id), types.NetworkCreate{
+		fmt.Sprintf("%d:%s", cont.BuildID, cont.Name), types.NetworkCreate{
 			Driver: "bridge",
 		})
 	if err != nil {
@@ -88,7 +85,7 @@ func BuildContainer(repoUrl string, buildID uint, cont db.Container, organizatio
 			Image:  v.Image,
 			Cmd:    givenCmd,
 			Env:    serivceEnv,
-			Labels: map[string]string{"buildId": fmt.Sprint(buildID)},
+			Labels: map[string]string{"buildId": fmt.Sprint(cont.BuildID)},
 			Healthcheck: &container.HealthConfig{
 				Test:        []string{"CMD-SHELL", v.Healthcheck},
 				StartPeriod: time.Second * 30,
@@ -128,7 +125,7 @@ func BuildContainer(repoUrl string, buildID uint, cont db.Container, organizatio
 				logStringBuilder.WriteString(fmt.Sprintf(
 					"Service container %s failed to be healthy", v.Name))
 				if errors.Is(err, context.DeadlineExceeded) {
-					finish(buildID, &cont, serviceContainerResponses,
+					finish(&cont, serviceContainerResponses,
 						networkResp, 255, logStringBuilder.String(), &container.CreateResponse{})
 					*failed = true
 					return
@@ -165,7 +162,7 @@ func BuildContainer(repoUrl string, buildID uint, cont db.Container, organizatio
 		Cmd:    []string{"bash", "-c", "sleep 1 && " + cont.Command},
 		Env:    mainEnv,
 		Tty:    false,
-		Labels: map[string]string{"buildId": fmt.Sprint(buildID), "containerId": fmt.Sprint(cont.Id)},
+		Labels: map[string]string{"buildId": strconv.FormatUint(uint64(cont.BuildID), 10), "containerId": cont.Name},
 		ExposedPorts: nat.PortSet{
 			"80/tcp": struct{}{},
 		},
@@ -188,13 +185,9 @@ func BuildContainer(repoUrl string, buildID uint, cont db.Container, organizatio
 		panic(err)
 	}
 
-	for _, neededFile := range cont.NeededFiles {
-		neededCont := build.Containers[slices.IndexFunc(build.Containers,
-			func(cont db.Container) bool { return cont.Name == neededFile.From })]
-		uploadedFile := neededCont.UploadedFiles[slices.IndexFunc(neededCont.UploadedFiles,
-			func(file db.UploadedFile) bool { return file.Path == neededFile.FromPath })]
+	for _, neededFile := range cont.FilesNeeded {
 		err = DockerCli.CopyToContainer(context.TODO(), mainContainerResponse.ID,
-			"/neededFiles/", bytes.NewReader(uploadedFile.Bytes), types.CopyToContainerOptions{})
+			"/neededFiles/", bytes.NewReader(neededFile.Bytes), types.CopyToContainerOptions{})
 		if err != nil {
 			log.Println(err)
 		}
@@ -236,7 +229,7 @@ func BuildContainer(repoUrl string, buildID uint, cont db.Container, organizatio
 		response.Close()
 	}()
 
-	Rdb.Publish(context.TODO(), fmt.Sprintf("build.%d.container.%d.create", build.ID, cont.Id), "")
+	Rdb.Publish(context.TODO(), fmt.Sprintf("build.%d.container.%s.create", cont.BuildID, cont.Name), "")
 
 	output, errCh := ReadAttach(response.Reader)
 
@@ -249,7 +242,7 @@ readLoop:
 			} else if errors.Is(err, net.ErrClosed) {
 				close()
 				logStringBuilder.WriteString("Container dealine exceeded")
-				finish(buildID, &cont, serviceContainerResponses, networkResp, 255, logStringBuilder.String(),
+				finish(&cont, serviceContainerResponses, networkResp, 255, logStringBuilder.String(),
 					&mainContainerResponse)
 				*failed = true
 				return
@@ -257,7 +250,8 @@ readLoop:
 			panic(err)
 		case outputData := <-output:
 			logStringBuilder.Write(bytes.ReplaceAll(outputData, []byte{0}, []byte{}))
-			err = Rdb.Publish(context.TODO(), fmt.Sprintf("build.%d.container.%d.log", build.ID, cont.Id), outputData).Err()
+			err = Rdb.Publish(context.TODO(), fmt.Sprintf("build.%d.container.%s.log",
+				cont.BuildID, cont.Name), outputData).Err()
 			if err != nil {
 				panic(err)
 			}
@@ -271,11 +265,11 @@ readLoop:
 		panic(err)
 	}
 
-	for _, file := range cont.UploadedFiles {
+	for _, file := range cont.FilesUploaded {
 		reader, _, err := DockerCli.CopyFromContainer(context.TODO(), mainContainerResponse.ID, file.Path)
 		if err != nil {
 			logStringBuilder.WriteString(fmt.Sprintf("Failed to upload file (%s)", file.Path))
-			finish(buildID, &cont, serviceContainerResponses, networkResp, 255, logStringBuilder.String(),
+			finish(&cont, serviceContainerResponses, networkResp, 255, logStringBuilder.String(),
 				&mainContainerResponse)
 			*failed = true
 			return
@@ -288,15 +282,15 @@ readLoop:
 		db.Db.Model(&file).Update("bytes", bytes)
 	}
 
-	finish(buildID, &cont, serviceContainerResponses, networkResp, t.State.ExitCode, logStringBuilder.String(),
+	finish(&cont, serviceContainerResponses, networkResp, t.State.ExitCode, logStringBuilder.String(),
 		&mainContainerResponse)
 
 	if t.State.ExitCode == 0 {
 		var edges []db.ContainerGraphEdge
-		db.Db.Where("from_id = ?", uint(cont.Id)).
+		db.Db.Where("from_name = ? AND build_id = ?", cont.Name, cont.BuildID).
 			Preload("To.EdgesToward.From").
-			Preload("To.NeededFiles").
-			Preload("To.UploadedFiles").
+			Preload("To.FilesNeeded").
+			Preload("To.FilesUploaded").
 			Preload("To.ServiceContainers").
 			Find(&edges)
 		for _, edge := range edges {
@@ -308,7 +302,7 @@ readLoop:
 					if edge.To.Persist == nil {
 						wg.Add(1)
 					}
-					go BuildContainer(repoUrl, buildID, edge.To, organizationId, wg, failed)
+					go BuildContainer(repoUrl, edge.To, organizationId, wg, failed)
 				}
 			}
 		}

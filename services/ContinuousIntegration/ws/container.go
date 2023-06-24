@@ -40,14 +40,14 @@ func HandleContainerWs(c *gin.Context) {
 		return
 	}
 
-	containerId, err := strconv.Atoi(c.Param("containerId"))
+	buildId, err := strconv.Atoi(c.Param("buildId"))
 	if err != nil {
 		socket.WriteControl(websocket.CloseMessage,
 			websocket.FormatCloseMessage(websocket.CloseAbnormalClosure, ""), time.Now().Add(time.Second))
 		return
 	}
 
-	container := db.Container{Id: uint(containerId)}
+	container := db.Container{Name: c.Param("containerName"), BuildID: uint(buildId)}
 	err = db.Db.Preload("Build.Repo").First(&container).Error
 
 	if err != nil || container.Build.Repo.OrganizationID != user.OrganizationID {
@@ -61,8 +61,8 @@ func HandleContainerWs(c *gin.Context) {
 		return
 	}
 
-	pubsub := lib.Rdb.PSubscribe(context.TODO(), fmt.Sprintf("build.%s.container.%s.*",
-		c.Param("buildId"), c.Param("containerId")))
+	pubsub := lib.Rdb.PSubscribe(context.TODO(), fmt.Sprintf("build.%d.container.%s.*",
+		buildId, container.Name))
 	defer pubsub.Close()
 
 	ch := pubsub.Channel()
