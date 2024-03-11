@@ -32,5 +32,10 @@ func DownloadFile(c *gin.Context) {
 		return
 	}
 
+	if len(file.Bytes) == 0 {
+		c.String(http.StatusNotFound, "File Not Uploaded")
+		return
+	}
+
 	c.Data(http.StatusOK, "application/x-tar", file.Bytes)
 }
