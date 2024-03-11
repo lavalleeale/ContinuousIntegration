@@ -19,7 +19,7 @@ func Open() error {
 	}
 
 	log.Println(Db.AutoMigrate(&User{}, &Organization{}, &Repo{}, &Build{}, &Container{}, &ServiceContainer{},
-		&ContainerGraphEdge{}, &UploadedFile{}, &NeededFile{}))
+		&ContainerGraphEdge{}, &UploadedFile{}))
 
 	return nil
 }

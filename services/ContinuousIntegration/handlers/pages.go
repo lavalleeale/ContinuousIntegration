@@ -60,10 +60,10 @@ func BuildPage(c *gin.Context) {
 		buildId, err := strconv.Atoi(c.Param("buildId"))
 		if err == nil {
 
-			build := db.Build{ID: uint(buildId), Repo: db.Repo{OrganizationID: user.OrganizationID}}
+			build := db.Build{ID: uint(buildId)}
 			tx := db.Db.Preload("Repo").Preload("Containers.EdgesFrom").Preload(
-				"Containers.UploadedFiles", func(db *gorm.DB) *gorm.DB {
-					return db.Select("id", "path", "container_id")
+				"Containers.FilesUploaded", func(db *gorm.DB) *gorm.DB {
+					return db.Select("id", "path", "from_name", "build_id")
 				}).First(&build)
 
 			if err == nil && build.Repo.OrganizationID == user.OrganizationID {
@@ -87,12 +87,12 @@ func ContainerPage(c *gin.Context) {
 	var user db.User
 
 	if lib.GetUser(c, &user) {
-		containerId, err := strconv.Atoi(c.Param("containerId"))
+		buildId, err := strconv.Atoi(c.Param("buildId"))
 		if err != nil {
 			c.Redirect(http.StatusFound, "/")
 		}
 
-		container := db.Container{Id: uint(containerId)}
+		container := db.Container{Name: c.Param("containerName"), BuildID: uint(buildId)}
 
 		db.Db.Preload("Build.Repo").First(&container)
 

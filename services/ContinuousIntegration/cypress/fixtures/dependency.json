@@ -4,14 +4,20 @@
             "id": "first",
             "image": "base",
             "steps": [
-                "ls"
+                {
+                    "type": "shell",
+                    "command": ":"
+                }
             ]
         },
         {
             "id": "second",
             "image": "base",
             "steps": [
-                "ls"
+                {
+                    "type": "shell",
+                    "command": ":"
+                }
             ],
             "needs": [
                 "first"

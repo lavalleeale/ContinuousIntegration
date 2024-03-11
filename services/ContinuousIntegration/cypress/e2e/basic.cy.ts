@@ -30,7 +30,7 @@ describe("Builds", () => {
     cy.get("#add-build").click({ force: true });
     cy.get(".bg-yellow-500", { timeout: 20000 }).should("be.visible");
     cy.get(".bg-green-500", { timeout: 20000 }).should("be.visible");
-    cy.get('[href="/build/1/container/1"]').click({ force: true });
+    cy.get('[href="/build/1/container/single"]').click({ force: true });
     cy.contains("ci.json").should("be.visible");
   });
   it("Tests multiple builds", () => {
@@ -42,11 +42,11 @@ describe("Builds", () => {
       });
     });
     cy.get("#add-build").click({ force: true });
-    cy.get('[href="/build/1/container/1"]')
+    cy.get('[href="/build/1/container/first"]')
       .parent()
       .get(".bg-yellow-500", { timeout: 20000 })
       .should("be.visible");
-    cy.get('[href="/build/1/container/2"]')
+    cy.get('[href="/build/1/container/second"]')
       .parent()
       .get(".bg-gray-500")
       .should("be.visible");
@@ -67,7 +67,7 @@ describe("Builds", () => {
     cy.contains("first").parent().contains("/repo").click({ force: true });
     cy.readFile(`${Cypress.config("downloadsFolder")}/_repo.tar`);
     deleteDownloadsFolder();
-    cy.get('[href="/build/1/container/2"]').click({ force: true });
+    cy.get('[href="/build/1/container/second"]').click({ force: true });
     cy.contains("ci.json").should("be.visible");
   });
   it("Tests environment variables", () => {
@@ -80,7 +80,7 @@ describe("Builds", () => {
     });
     cy.get("#add-build").click({ force: true });
     cy.get(".bg-green-500", { timeout: 20000 }).should("be.visible");
-    cy.get('[href="/build/1/container/1"]').click({ force: true });
+    cy.get('[href="/build/1/container/environment"]').click({ force: true });
     cy.contains("Hello World").should("be.visible");
   });
   it("Tests service containers", () => {
@@ -93,7 +93,7 @@ describe("Builds", () => {
     });
     cy.get("#add-build").click({ force: true });
     cy.get(".bg-green-500", { timeout: 20000 }).should("be.visible");
-    cy.get('[href="/build/1/container/1"]').click({ force: true });
+    cy.get('[href="/build/1/container/service"]').click({ force: true });
     cy.contains("HelloWorld").should("be.visible");
   });
   it("Tests log websocket", () => {
@@ -105,7 +105,7 @@ describe("Builds", () => {
       });
     });
     cy.get("#add-build").click({ force: true });
-    cy.get("[href='/build/1/container/1']").click({ force: true });
+    cy.get("[href='/build/1/container/single']").click({ force: true });
     cy.contains("first", { timeout: 20000 }).should("be.visible");
     cy.contains("second").should("not.exist");
     cy.contains("second", { timeout: 20000 }).should("be.visible");
@@ -120,7 +120,7 @@ describe("Builds", () => {
     });
     cy.get("#add-build").click({ force: true });
     cy.get(".bg-yellow-500", { timeout: 20000 }).should("be.visible");
-    cy.wait(1000);
+    cy.wait(5000);
     cy.contains<HTMLElement>("Preview Link").then(($a) => {
       const href = $a.prop("href");
       cy.request(href).its("body").should("include", "OK");

@@ -48,12 +48,12 @@ type Build struct {
 	RepoID    uint
 
 	Containers []Container `gorm:"constraint:OnDelete:CASCADE;"`
+
+	UploadedFiles []UploadedFile `gorm:"constraint:OnDelete:CASCADE;"`
 }
 
 type Container struct {
-	Id uint `gorm:"primaryKey"`
-
-	Name        string
+	Name        string `gorm:"primaryKey;index:idx_name,unique"`
 	Code        *int
 	Command     string `gorm:"size:8192"`
 	Image       string
@@ -61,16 +61,16 @@ type Container struct {
 	Log         string  `gorm:"size:100000"`
 	Persist     *string
 
-	ServiceContainers []ServiceContainer `gorm:"constraint:OnDelete:CASCADE;"`
+	ServiceContainers []ServiceContainer `gorm:"constraint:OnDelete:CASCADE;foreignKey:ContainerName,BuildID;references:Name,BuildID"`
 
-	UploadedFiles []UploadedFile `gorm:"constraint:OnDelete:CASCADE;"`
+	FilesUploaded []UploadedFile `gorm:"constraint:OnDelete:CASCADE;foreignKey:FromName,BuildID;references:Name,BuildID"`
 
-	NeededFiles []NeededFile `gorm:"constraint:OnDelete:CASCADE;"`
+	FilesNeeded []UploadedFile `gorm:"many2many:files_needed;constraint:OnDelete:CASCADE;"`
 
-	EdgesToward []ContainerGraphEdge `gorm:"constraint:OnDelete:CASCADE;foreignKey:ToID"`
-	EdgesFrom   []ContainerGraphEdge `gorm:"constraint:OnDelete:CASCADE;foreignKey:FromID"`
+	EdgesToward []ContainerGraphEdge `gorm:"constraint:OnDelete:CASCADE;foreignKey:ToName,BuildID;references:Name,BuildID"`
+	EdgesFrom   []ContainerGraphEdge `gorm:"constraint:OnDelete:CASCADE;foreignKey:FromName,BuildID;references:Name,BuildID"`
 
-	BuildID uint
+	BuildID uint `gorm:"primaryKey;index:idx_name,unique"`
 	Build   Build
 }
 
@@ -83,15 +83,8 @@ type ServiceContainer struct {
 	Command     *string `gorm:"size:512"`
 	Environment *string `gorm:"size:512"`
 
-	ContainerID uint
-}
-
-type NeededFile struct {
-	Id          uint `gorm:"primaryKey"`
-	From        string
-	FromPath    string
-	ContainerID uint
-	Container   Container
+	ContainerName string
+	BuildID       uint
 }
 
 func (v Container) ID() string {
@@ -99,11 +92,17 @@ func (v Container) ID() string {
 }
 
 type UploadedFile struct {
-	ID          uuid.UUID `gorm:"type:uuid;primary_key;"`
-	Path        string
-	Container   Container
-	ContainerID uint
-	Bytes       []byte
+	ID uuid.UUID `gorm:"type:uuid;primary_key;"`
+
+	Path  string
+	Bytes []byte
+
+	FromName string
+	From     Container    `gorm:"foreignKey:FromName,BuildID;references:Name,BuildID"`
+	To       []*Container `gorm:"many2many:files_needed;"`
+
+	BuildID uint
+	Build   Build
 }
 
 func (file *UploadedFile) BeforeCreate(tx *gorm.DB) (err error) {
@@ -116,8 +115,10 @@ func (file *UploadedFile) BeforeCreate(tx *gorm.DB) (err error) {
 type ContainerGraphEdge struct {
 	ID uint
 
-	ToID   uint
-	FromID uint
-	From   Container `gorm:"foreignKey:FromID"`
-	To     Container `gorm:"foreignKey:ToID"`
+	BuildID uint
+
+	ToName   string
+	FromName string
+	From     Container `gorm:"foreignKey:FromName,BuildID;references:Name,BuildID"`
+	To       Container `gorm:"foreignKey:ToName,BuildID;references:Name,BuildID"`
 }

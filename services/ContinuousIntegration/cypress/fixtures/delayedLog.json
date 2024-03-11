@@ -4,9 +4,18 @@
             "id": "single",
             "image": "base",
             "steps": [
-                "echo first",
-                "sleep 5",
-                "echo second"
+                {
+                    "type": "shell",
+                    "command": "echo first"
+                },
+                {
+                    "type": "shell",
+                    "command": "sleep 5"
+                },
+                {
+                    "type": "shell",
+                    "command": "echo second"
+                }
             ]
         }
     ]

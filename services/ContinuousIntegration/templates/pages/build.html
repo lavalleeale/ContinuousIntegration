@@ -6,13 +6,13 @@
   </h3>
   <h3 class="text-2xl mb-4" id="status">Status: {{ .Build.Status }}</h3>
   <h4 class="text-xl">Containers:</h4>
-  <pre class="flowchart" id="test" style="display: none">
+  <pre class="flowchart" style="display: none">
   flowchart LR;
   {{ range .Build.Containers }}
     {{ range .EdgesFrom }}
-    {{ .FromID }}--&gt;{{ .ToID }};;
+    {{ .FromName }}--&gt;{{ .ToName }};;
     {{ end }}
-    {{ .Id }}["{{Include "BuildContainer" (Arr . $) }}"]
+    {{ .Name }}["{{Include "BuildContainer" (Arr . $) }}"]
   {{ end }}
   </pre>
 </div>

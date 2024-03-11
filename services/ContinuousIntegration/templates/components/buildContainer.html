@@ -1,7 +1,7 @@
 {{ define "BuildContainer" }}
 <div class="paper min-w-[8.5rem] inline-block align-top text-left">
   <a
-    href="/build/{{ (index . 0).BuildID }}/container/{{ (index . 0).Id }}"
+    href="/build/{{ (index . 0).BuildID }}/container/{{ (index . 0).Name }}"
     class="text-normal inline-block w-[calc(100%-1.5rem)] cursor-pointer"
   >
     {{ (index . 0).Name }}
@@ -10,28 +10,28 @@
   (Deref (index . 0).Code) 0) }}
   <div
     class="inline bg-green-500 rounded-2xl float-right h-6 w-6 text-center text-white peer"
-    id="{{ (index . 0).Id }}"
+    id="{{ (index . 0).Name }}"
   >
     ✓
   </div>
   {{ else if ne (index . 0).Code nil }}
   <div
     class="inline bg-red-500 rounded-2xl float-right h-6 w-6 text-center text-white peer"
-    id="{{ (index . 0).Id }}"
+    id="{{ (index . 0).Name }}"
   >
     X
   </div>
   {{ else if eq $length 0 }}
   <div
     class="inline bg-gray-500 rounded-2xl float-right h-6 w-6 text-center text-white peer"
-    id="{{ (index . 0).Id }}"
+    id="{{ (index . 0).Name }}"
   >
     ?
   </div>
   {{ else }}
   <div
     class="inline bg-yellow-500 rounded-2xl float-right h-6 w-6 text-center text-white peer"
-    id="{{ (index . 0).Id }}"
+    id="{{ (index . 0).Name }}"
   >
     ?
   </div>
@@ -39,7 +39,7 @@
   <form
     class="hidden rounded-2xl float-right h-6 w-6 text-center text-white cursor-pointer peer-[.bg-yellow-500]:inline peer"
     method="post"
-    action="/build/{{ (index . 0).BuildID }}/container/{{ (index . 0).Id }}/stop"
+    action="/build/{{ (index . 0).BuildID }}/container/{{ (index . 0).Name }}/stop"
   >
     <button
       class="fa-sharp fa-solid fa-stop inline text-red-500 hover:text-red-600"
@@ -51,10 +51,11 @@
     target="_blank"
     class="block"
     >Preview Link</a
-  >{{end}} {{ $length := len (index . 0).UploadedFiles }} {{ if gt $length 0 }}
-  {{range (index . 0).UploadedFiles}}
+  >{{end}} {{ $length := len (index . 0).FilesUploaded }} {{ if gt $length 0 }}
   <p>Uploaded Files:</p>
+  {{range (index . 0).FilesUploaded}}
   <a class="block" href="/file/{{.ID}}" download="{{.Path}}.tar"> {{.Path}} </a>
   {{end}} {{ end }}
+  <!-- here -->
 </div>
 {{ end }}

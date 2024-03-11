@@ -4,8 +4,14 @@
             "id": "service",
             "image": "base",
             "steps": [
-                "echo \"set test HelloWorld\" | redis-cli -h redis",
-                "echo \"get test\" | redis-cli -h redis"
+                {
+                    "type": "shell",
+                    "command": "echo \"set test HelloWorld\" | redis-cli -h redis"
+                },
+                {
+                    "type": "shell",
+                    "command": "echo \"get test\" | redis-cli -h redis"
+                }
             ],
             "services": {
                 "redis": {

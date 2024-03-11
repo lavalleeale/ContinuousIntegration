@@ -4,7 +4,13 @@
             "id": "single",
             "image": "base",
             "steps": [
-                "ls"
+                {
+                    "type": "clone"
+                },
+                {
+                    "type": "shell",
+                    "command": "ls"
+                }
             ]
         }
     ]

@@ -19,12 +19,12 @@ func StopContainer(c *gin.Context) {
 
 	lib.GetUser(c, &user)
 
-	containerId, err := strconv.Atoi(c.Param("containerId"))
+	buildId, err := strconv.Atoi(c.Param("buildId"))
 	if err != nil {
 		c.Redirect(http.StatusFound, "/")
 	}
 
-	containerData := db.Container{Id: uint(containerId)}
+	containerData := db.Container{Name: c.Param("containerName"), BuildID: uint(buildId)}
 
 	db.Db.Preload("Build.Repo").First(&containerData)
 
@@ -38,7 +38,7 @@ func StopContainer(c *gin.Context) {
 			},
 			filters.KeyValuePair{
 				Key:   "label",
-				Value: fmt.Sprintf("containerId=%s", c.Param("containerId")),
+				Value: fmt.Sprintf("containerId=%s", c.Param("containerName")),
 			},
 		)
 		containers, err := lib.DockerCli.ContainerList(
@@ -56,7 +56,10 @@ func StopContainer(c *gin.Context) {
 			c.Redirect(http.StatusFound, "/")
 			return
 		}
-		lib.DockerCli.ContainerStop(context.Background(), containers[0].ID, container.StopOptions{})
+		timeout := 3
+		lib.DockerCli.ContainerStop(context.Background(), containers[0].ID, container.StopOptions{
+			Timeout: &timeout,
+		})
 		c.Redirect(http.StatusFound, "/build/"+c.Param("buildId"))
 		return
 	}

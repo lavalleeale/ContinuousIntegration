@@ -4,8 +4,17 @@
       "id": "assets",
       "image": "base",
       "steps": [
-        "yarn --cwd services/ContinuousIntegration --immutable",
-        "yarn --cwd services/ContinuousIntegration build"
+        {
+          "type": "clone"
+        },
+        {
+          "type": "shell",
+          "command": "yarn --cwd services/ContinuousIntegration --immutable"
+        },
+        {
+          "type": "shell",
+          "command": "yarn --cwd services/ContinuousIntegration build"
+        }
       ],
       "uploads": [
         "/repo/services/ContinuousIntegration/assets/output"
@@ -15,8 +24,17 @@
       "id": "main",
       "image": "base",
       "steps": [
-        "cp -a /neededFiles/output services/ContinuousIntegration/assets/output",
-        "go build -C services/ContinuousIntegration"
+        {
+          "type": "clone"
+        },
+        {
+          "type": "shell",
+          "command": "cp -a /neededFiles/output services/ContinuousIntegration/assets/output"
+        },
+        {
+          "type": "shell",
+          "command": "go build -C services/ContinuousIntegration"
+        }
       ],
       "neededFiles": [
         "assets:/repo/services/ContinuousIntegration/assets/output"
@@ -32,7 +50,13 @@
       "id": "registry",
       "image": "base",
       "steps": [
-        "go build -C services/registry"
+        {
+          "type": "clone"
+        },
+        {
+          "type": "shell",
+          "command": "go build -C services/registry"
+        }
       ],
       "uploads": [
         "/repo/services/registry/registry"
@@ -42,7 +66,13 @@
       "id": "proxy",
       "image": "base",
       "steps": [
-        "go build -C services/proxy"
+        {
+          "type": "clone"
+        },
+        {
+          "type": "shell",
+          "command": "go build -C services/proxy"
+        }
       ],
       "uploads": [
         "/repo/services/proxy/proxy"
@@ -52,23 +82,57 @@
       "id": "test",
       "image": "base",
       "steps": [
-        "cp /neededFiles/* services/ContinuousIntegration/",
-        "(dockerd > dockerlog.txt 2>&1 &)",
-        "yarn --cwd services/ContinuousIntegration --immutable",
-        "docker run -d -p 3000:3000 pascalgn/git-server-docker",
-        "sleep 5",
-        "git remote add test http://localhost:3000/repository.git",
-        "git push test HEAD:refs/heads/master --force",
-        "docker buildx create --driver docker-container --name mybuilder --use --bootstrap",
-        "docker cp /usr/local/share/ca-certificates/registry.crt buildx_buildkit_mybuilder0:/usr/local/share/ca-certificates/registry.crt",
-        "docker exec buildx_buildkit_mybuilder0 update-ca-certificates",
-        "docker login --username=$DOCKER_USER --password=$DOCKER_PASS $REGISTRY",
-        "docker buildx build --tag base --cache-to=type=registry,ref=$REGISTRY/alex/base:CI,mode=max --cache-from=type=registry,ref=$REGISTRY/alex/base:CI --load images/base",
-        "docker pull redis",
-        "echo yarn --cwd services/ContinuousIntegration conc --kill-others --names \"proxy,server,cypress\" --success \"command-cypress\" \"./proxy\" \"./ContinuousIntegration\" \"yarn cypress run --env host=http://$(ip a s eth0 | grep -oP '(?<=inet\\s)\\d+(\\.\\d+){3}'):3000\"",
-        "yarn --cwd services/ContinuousIntegration conc --kill-others --names \"proxy,server,cypress\" --success \"command-cypress\" \"./proxy\" \"./ContinuousIntegration\" \"yarn cypress run --env host=http://$(ip a s eth0 | grep -oP '(?<=inet\\s)\\d+(\\.\\d+){3}'):3000\"",
-        "docker tag base $REGISTRY/alex/base",
-        "docker push $REGISTRY/alex/base"
+        {
+          "type": "clone"
+        },
+        {
+          "type": "shell",
+          "command": "cp /neededFiles/* services/ContinuousIntegration/"
+        },
+        {
+          "type": "start-docker"
+        },
+        {
+          "type": "shell",
+          "command": "yarn --cwd services/ContinuousIntegration --immutable"
+        },
+        {
+          "type": "shell",
+          "command": "docker run -d -p 3000:3000 pascalgn/git-server-docker"
+        },
+        {
+          "type": "shell",
+          "command": "sleep 5"
+        },
+        {
+          "type": "shell",
+          "command": "git remote add test http://localhost:3000/repository.git"
+        },
+        {
+          "type": "shell",
+          "command": "git push test HEAD:refs/heads/master --force"
+        },
+        {
+          "type": "build-docker",
+          "tag": "base",
+          "cacheTag": "alex/base:CI"
+        },
+        {
+          "type": "shell",
+          "command": "docker pull redis"
+        },
+        {
+          "type": "shell",
+          "command": "yarn --cwd services/ContinuousIntegration conc --kill-others --names \"proxy,server,cypress\" --success \"command-cypress\" \"./proxy\" \"./ContinuousIntegration\" \"yarn cypress run --env host=http://$(ip a s eth0 | grep -oP '(?<=inet\\s)\\d+(\\.\\d+){3}'):3000\""
+        },
+        {
+          "type": "shell",
+          "command": "docker tag base $REGISTRY/alex/base"
+        },
+        {
+          "type": "shell",
+          "command": "docker push $REGISTRY/alex/base"
+        }
       ],
       "environment": {
         "DOMAIN": "localhost",

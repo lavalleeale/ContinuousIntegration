@@ -25,8 +25,7 @@ func main() {
 	log.Println(db.Db.Session(&gorm.Session{AllowGlobalUpdate: true}).Delete(&db.Organization{}).RowsAffected)
 	for _, seq := range []string{
 		"repos_id_seq", "builds_id_seq",
-		"container_graph_edges_id_seq", "needed_files_id_seq", "service_containers_id_seq",
-		"containers_id_seq",
+		"container_graph_edges_id_seq", "service_containers_id_seq",
 	} {
 		db.Db.Exec("ALTER SEQUENCE " + seq + " RESTART WITH 1")
 	}

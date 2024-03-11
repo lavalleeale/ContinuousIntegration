@@ -4,7 +4,10 @@
             "id": "environment",
             "image": "base",
             "steps": [
-                "echo $DATA"
+                {
+                    "type": "shell",
+                    "command": "echo $DATA"
+                }
             ],
             "environment": {
                 "DATA": "Hello World"

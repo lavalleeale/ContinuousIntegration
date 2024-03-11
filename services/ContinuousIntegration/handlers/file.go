@@ -22,12 +22,12 @@ func DownloadFile(c *gin.Context) {
 		return
 	}
 	file := db.UploadedFile{ID: fileId}
-	tx := db.Db.Preload("Container.Build.Repo").First(&file)
+	tx := db.Db.Preload("Build.Repo").First(&file)
 	if tx.Error != nil {
 		c.String(http.StatusBadRequest, "Invalid File ID")
 		return
 	}
-	if file.Container.Build.Repo.OrganizationID != user.OrganizationID {
+	if file.Build.Repo.OrganizationID != user.OrganizationID {
 		c.String(http.StatusUnauthorized, "Unauthorized")
 		return
 	}

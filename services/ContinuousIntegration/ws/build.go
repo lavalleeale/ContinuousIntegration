@@ -73,7 +73,7 @@ func HandleBuildWs(c *gin.Context) {
 			left++
 		} else {
 			socket.WriteJSON(gin.H{
-				"type": "die", "id": cont.Id,
+				"type": "die", "id": cont.Name,
 				"code": strconv.FormatInt(int64(*cont.Code), 10),
 			})
 		}
