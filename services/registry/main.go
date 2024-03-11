@@ -3,6 +3,8 @@ package main
 import (
 	"log"
 	"net/http"
+	"net/http/httputil"
+	"net/url"
 	"os"
 
 	"github.com/gin-gonic/gin"
@@ -12,6 +14,16 @@ import (
 	"golang.org/x/crypto/acme"
 	"golang.org/x/crypto/acme/autocert"
 )
+
+func proxy(c *gin.Context) {
+	remote, err := url.Parse(os.Getenv("REGISTRY_ADDRESS"))
+	if err != nil {
+		panic(err)
+	}
+
+	proxy := httputil.NewSingleHostReverseProxy(remote)
+	proxy.ServeHTTP(c.Writer, c.Request)
+}
 
 func main() {
 	err := godotenv.Load()
@@ -30,6 +42,9 @@ func main() {
 		Client:     &acme.Client{DirectoryURL: os.Getenv("DIRECTORY_URL")},
 	}
 
+	if os.Getenv("REGISTRY_ADDRESS") != "" {
+		r.NoRoute(proxy)
+	}
 	r.GET("/auth", lib.Handler(&m))
 	s := &http.Server{
 		Addr:      os.Getenv("ADDRESS"),
@@ -37,5 +52,5 @@ func main() {
 		Handler:   r,
 	}
 
-	s.ListenAndServeTLS("", "")
+	log.Println(s.ListenAndServeTLS("", ""))
 }

@@ -16,18 +16,12 @@ storage:
       interval: 24h
       dryrun: false
 http:
-  addr: :5000
+  addr: :80
   headers:
     X-Content-Type-Options: [nosniff]
-  tls:
-    letsencrypt:
-      cachefile: /cache
-      email: registry@lavallee.one
-      hosts: ["registry.dev.lan"]
-      directoryurl: "https://step.lan/acme/ACME/directory"
 auth:
   token:
-    realm: https://auth.dev.lan/auth
+    realm: https://registry.dev.lan/auth
     service: Authentication
     issuer: ci-issuer
     rootcertbundle: /certs/root.crt

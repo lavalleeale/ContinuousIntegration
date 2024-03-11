@@ -23,8 +23,6 @@ services:
       retries: 5
   registry:
     image: alex95712/registry
-    ports:
-      - 10.0.2.1:443:5000
     volumes:
       - "./CA.pem:/certs/root.crt"
       - "./registry-config.yml:/etc/docker/registry/config.yml"
@@ -34,13 +32,14 @@ services:
       context: ..
       dockerfile: Dockerfile.registry
     ports:
-      - 10.0.2.2:443:443
+      - 443:443
     environment:
       DATABASE_URL: postgres://development:development@db:5432/development?sslmode=disable
       JWT_SECRET: development
-      HOST: auth.dev.lan
+      HOST: registry.dev.lan
       DIRECTORY_URL: https://step.lan/acme/ACME/directory
       ADDRESS: ":https"
+      REGISTRY_ADDRESS: "http://registry"
     depends_on:
       db:
         condition: service_healthy
