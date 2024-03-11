@@ -27,7 +27,7 @@
   </button>
   <h2 class="text-3xl mb-4">Repo <a href="{{ .Url }}">{{ .Url }}</a></h2>
   <ul>
-    {{ range .Builds }}
+    {{ range reverse .Builds }}
     <a href="/build/{{ .ID }}">
       <div class="paper">
         {{if eq .Status "pending" }}

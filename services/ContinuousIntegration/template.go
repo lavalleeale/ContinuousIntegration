@@ -5,6 +5,8 @@ import (
 	"html/template"
 	"log"
 	"strings"
+
+	"github.com/lavalleeale/ContinuousIntegration/lib/db"
 )
 
 func GetTemplate() *template.Template {
@@ -25,6 +27,12 @@ func GetTemplate() *template.Template {
 		},
 		"Arr": func(els ...any) []any {
 			return els
+		},
+		"reverse": func(items []db.Build) []db.Build {
+			for i, j := 0, len(items)-1; i < j; i, j = i+1, j-1 {
+				items[i], items[j] = items[j], items[i]
+			}
+			return items
 		},
 	}
 

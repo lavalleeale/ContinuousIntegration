@@ -31,7 +31,6 @@ func main() {
 	}
 
 	err = db.Open()
-
 	if err != nil {
 		log.Fatal("Failed to Open DB")
 	}
@@ -54,9 +53,9 @@ func main() {
 		log.Fatal(err)
 	}
 
-	r := gin.New()
+	r := gin.Default()
 
-	r.Use(gin.Recovery(), lib.Session)
+	r.Use(lib.Session)
 
 	r.SetHTMLTemplate(GetTemplate())
 
