@@ -5,6 +5,8 @@ COPY --from=golang:1.20 /usr/local/go/ /usr/local/go/
 
 ENV PATH="/usr/local/go/bin:${PATH}"
 
+RUN curl -fsSL https://dl-ssl.google.com/linux/linux_signing_key.pub | tee /etc/apt/trusted.gpg.d/chrome.asc
+RUN curl -fsSL https://download.docker.com/linux/debian/gpg | tee /etc/apt/trusted.gpg.d/docker.asc
 #Install docker
 RUN apt-get update && apt-get install --no-install-recommends -y \
     apt-transport-https \
@@ -12,8 +14,6 @@ RUN apt-get update && apt-get install --no-install-recommends -y \
     curl \
     gnupg2 \
     software-properties-common
-RUN curl -fsSL https://download.docker.com/linux/debian/gpg | apt-key add -
-RUN apt-key fingerprint 0EBFCD88
 RUN add-apt-repository \
     "deb [arch=amd64] https://download.docker.com/linux/debian \
     $(lsb_release -cs) \
