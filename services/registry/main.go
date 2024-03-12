@@ -22,6 +22,24 @@ func proxy(c *gin.Context) {
 	}
 
 	proxy := httputil.NewSingleHostReverseProxy(remote)
+	proxy.Director = func(req *http.Request) {
+		req.URL.Scheme = remote.Scheme
+		req.URL.Host = remote.Host
+	}
+	proxy.ModifyResponse = func(resp *http.Response) error {
+		if resp.Header.Get("Location") != "" {
+			log.Println(resp.Header.Get("Location"))
+			location, err := url.Parse(resp.Header.Get("Location"))
+			if err != nil {
+				log.Println(err)
+				return nil
+			}
+			location.Scheme = "https"
+			location.Host = os.Getenv("HOST")
+			resp.Header.Set("Location", location.String())
+		}
+		return nil
+	}
 	proxy.ServeHTTP(c.Writer, c.Request)
 }
 
