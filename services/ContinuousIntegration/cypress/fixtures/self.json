@@ -155,6 +155,9 @@
         "main:/repo/services/ContinuousIntegration/ContinuousIntegration",
         "proxy:/repo/services/proxy/proxy"
       ],
+      "uploads": [
+        "/repo/services/ContinuousIntegration/cypress/videos"
+      ],
       "services": {
         "db": {
           "image": "postgres",
