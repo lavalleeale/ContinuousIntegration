@@ -94,8 +94,7 @@ func (v Container) ID() string {
 type UploadedFile struct {
 	ID uuid.UUID `gorm:"type:uuid;primary_key;"`
 
-	Path  string
-	Bytes []byte
+	Path string
 
 	FromName string
 	From     Container    `gorm:"foreignKey:FromName,BuildID;references:Name,BuildID"`

@@ -48,6 +48,8 @@ func main() {
 
 	lib.StartRedisClient()
 
+	lib.StartS3Client()
+
 	serverRoot, err := fs.Sub(assetsFS, "assets/output")
 	if err != nil {
 		log.Fatal(err)

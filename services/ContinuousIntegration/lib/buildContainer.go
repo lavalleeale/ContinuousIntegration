@@ -22,6 +22,7 @@ import (
 	"github.com/docker/go-connections/nat"
 	"github.com/lavalleeale/ContinuousIntegration/lib/db"
 	sessionseal "github.com/lavalleeale/SessionSeal"
+	"github.com/minio/minio-go/v7"
 )
 
 func finish(cont *db.Container, containers []container.CreateResponse,
@@ -186,8 +187,15 @@ func BuildContainer(repoUrl string, cont db.Container, organizationId string, wg
 	}
 
 	for _, neededFile := range cont.FilesNeeded {
+		object, err := MinioClient.GetObject(context.TODO(), BucketName,
+			neededFile.ID.String(), minio.GetObjectOptions{})
+		if err != nil {
+			log.Println(err)
+			continue
+		}
+
 		err = DockerCli.CopyToContainer(context.TODO(), mainContainerResponse.ID,
-			"/neededFiles/", bytes.NewReader(neededFile.Bytes), types.CopyToContainerOptions{})
+			"/neededFiles/", object, types.CopyToContainerOptions{})
 		if err != nil {
 			log.Println(err)
 		}
@@ -275,11 +283,24 @@ readLoop:
 			return
 		}
 		defer reader.Close()
-		bytes, err := io.ReadAll(reader)
+		buf := new(bytes.Buffer)
+		n, err := buf.ReadFrom(reader)
 		if err != nil {
-			break
+			logStringBuilder.WriteString(fmt.Sprintf("Failed to upload file (%s)", file.Path))
+			finish(&cont, serviceContainerResponses, networkResp, 255, logStringBuilder.String(),
+				&mainContainerResponse)
+			*failed = true
+			return
 		}
-		db.Db.Model(&file).Update("bytes", bytes)
+		_, err = MinioClient.PutObject(context.TODO(), BucketName, file.ID.String(), buf,
+			n, minio.PutObjectOptions{})
+		if err != nil {
+			logStringBuilder.WriteString(fmt.Sprintf("Failed to upload file (%s)", file.Path))
+			finish(&cont, serviceContainerResponses, networkResp, 255, logStringBuilder.String(),
+				&mainContainerResponse)
+			*failed = true
+			return
+		}
 	}
 
 	finish(&cont, serviceContainerResponses, networkResp, t.State.ExitCode, logStringBuilder.String(),

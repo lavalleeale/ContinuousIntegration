@@ -2,6 +2,18 @@
 version: "3.1"
 
 services:
+  minio:
+    ports:
+      - 9000:9000
+      - 9001:9001
+    container_name: minio
+    volumes:
+      - ./minio-data:/data
+    environment:
+      - MINIO_ROOT_USER=development
+      - MINIO_ROOT_PASSWORD=development
+    image: quay.io/minio/minio
+    command: server /data --console-address ":9001"
   redis:
     ports:
       - 6379:6379
@@ -17,7 +29,7 @@ services:
     volumes:
       - "db:/var/lib/postgresql/data"
     healthcheck:
-      test: [ "CMD-SHELL", "pg_isready -U postgres" ]
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 5s
       timeout: 5s
       retries: 5

@@ -1,12 +1,15 @@
 package handlers
 
 import (
+	"context"
+	"io"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"github.com/lavalleeale/ContinuousIntegration/lib/db"
 	"github.com/lavalleeale/ContinuousIntegration/services/ContinuousIntegration/lib"
+	"github.com/minio/minio-go/v7"
 )
 
 func DownloadFile(c *gin.Context) {
@@ -32,10 +35,17 @@ func DownloadFile(c *gin.Context) {
 		return
 	}
 
-	if len(file.Bytes) == 0 {
-		c.String(http.StatusNotFound, "File Not Uploaded")
+	object, err := lib.MinioClient.GetObject(context.TODO(), lib.BucketName, file.ID.String(), minio.GetObjectOptions{})
+	if err != nil {
+		c.String(http.StatusNotFound, "File Not Found")
 		return
 	}
 
-	c.Data(http.StatusOK, "application/x-tar", file.Bytes)
+	bytes, err := io.ReadAll(object)
+	if err != nil {
+		c.String(http.StatusInternalServerError, "Error Reading File")
+		return
+	}
+
+	c.Data(http.StatusOK, "application/x-tar", bytes)
 }
