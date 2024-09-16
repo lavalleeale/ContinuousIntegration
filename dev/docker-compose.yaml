@@ -69,9 +69,12 @@ services:
       DOCKER_HOST: unix:///var/run/docker.sock
       DATABASE_URL: postgres://development:development@db:5432/development?sslmode=disable
       REDIS_URL: redis://redis:6379
-      RUNTIME: sysbox-runc
+      RUNTIME: runc
       REGISTRY_URL: registry.dev.lan
       PERSIST_HOST: localhost
+      S3_URL: minio:9000
+      S3_ACCESS_KEY_ID: development
+      S3_SECRET_ACCESS_KEY: development
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
     depends_on:

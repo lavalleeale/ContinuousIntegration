@@ -193,6 +193,7 @@ func BuildContainer(repoUrl string, cont db.Container, organizationId string, wg
 			log.Println(err)
 			continue
 		}
+		defer object.Close()
 
 		err = DockerCli.CopyToContainer(context.TODO(), mainContainerResponse.ID,
 			"/neededFiles/", object, types.CopyToContainerOptions{})
@@ -293,7 +294,7 @@ readLoop:
 			return
 		}
 		_, err = MinioClient.PutObject(context.TODO(), BucketName, file.ID.String(), buf,
-			n, minio.PutObjectOptions{})
+			n, minio.PutObjectOptions{ContentType: "application/x-tar"})
 		if err != nil {
 			logStringBuilder.WriteString(fmt.Sprintf("Failed to upload file (%s)", file.Path))
 			finish(&cont, serviceContainerResponses, networkResp, 255, logStringBuilder.String(),
