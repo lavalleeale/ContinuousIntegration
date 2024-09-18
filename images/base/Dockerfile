@@ -1,5 +1,6 @@
 FROM cypress/browsers:node-16.18.1-chrome-110.0.5481.96-1-ff-109.0-edge-110.0.1587.41-1
 
+# Multi arch build weirdness, amd64 needs keys before install and arm64 needs apt-key add to be run
 RUN curl -fsSL https://dl-ssl.google.com/linux/linux_signing_key.pub | tee /etc/apt/trusted.gpg.d/chrome.asc
 RUN curl -fsSL https://download.docker.com/linux/debian/gpg | tee /etc/apt/trusted.gpg.d/docker.asc
 
@@ -11,8 +12,11 @@ RUN apt-get update && apt-get install --no-install-recommends -y \
     gnupg2 \
     software-properties-common
 
+RUN curl -fsSL https://dl-ssl.google.com/linux/linux_signing_key.pub  | apt-key add -
+RUN curl -fsSL https://download.docker.com/linux/debian/gpg | apt-key add -
+
 RUN add-apt-repository \
-    "deb [arch=amd64] https://download.docker.com/linux/debian \
+    "deb https://download.docker.com/linux/debian \
     $(lsb_release -cs) \
     stable"
 

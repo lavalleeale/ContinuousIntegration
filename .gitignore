@@ -15,3 +15,4 @@ screenshots
 gitea
 covdatafiles
 minio-data
+cypress.env.json
