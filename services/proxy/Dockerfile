@@ -12,7 +12,7 @@ COPY *.go ./
 
 RUN go build -o /build
 
-FROM golang:1.20
+FROM golang:1.22
 
 WORKDIR /app
 
