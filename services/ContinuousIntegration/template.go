@@ -2,11 +2,15 @@ package main
 
 import (
 	"bytes"
+	"encoding/json"
+	"fmt"
 	"html/template"
 	"log"
+	"os"
 	"strings"
 
 	"github.com/lavalleeale/ContinuousIntegration/lib/db"
+	sessionseal "github.com/lavalleeale/SessionSeal"
 )
 
 func GetTemplate() *template.Template {
@@ -33,6 +37,15 @@ func GetTemplate() *template.Template {
 				items[i], items[j] = items[j], items[i]
 			}
 			return items
+		},
+		"signInvite": func(invite db.OrganizationInvite) string {
+			inviteData, err := json.Marshal(invite)
+			if err != nil {
+				// We have created map so marshalling it should never fail
+				panic(err)
+			}
+			return fmt.Sprintf("%s/acceptInvite?data=%s", os.Getenv("URL"),
+				sessionseal.Seal(os.Getenv("JWT_SECRET"), inviteData))
 		},
 	}
 

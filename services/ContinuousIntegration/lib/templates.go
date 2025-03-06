@@ -54,45 +54,17 @@ type TemplateData struct {
 
 func (templateData *TemplateData) GetString(repo db.Repo) (string, error) {
 	var buf bytes.Buffer
-	switch templateData.Type {
-	case "clone":
-		if err := CloneTemplate.Execute(&buf, struct {
-			CloneTemplateData
-			Url string
-		}{
-			CloneTemplateData: *templateData.CloneTemplateData,
-			Url:               repo.Url,
-		}); err != nil {
-			return "", err
-		}
-	case "start-docker":
-		if err := DockerTemplate.Execute(&buf, templateData.DockerTemplateData); err != nil {
-			return "", err
-		}
-	case "shell":
-		if err := ShellTemplate.Execute(&buf, templateData.ShellTemplateData); err != nil {
-			return "", err
-		}
-	case "build-docker":
-		if err := DockerBuildTemplate.Execute(&buf, templateData.DockerBuildTemplateData); err != nil {
-			return "", err
-		}
-	}
+	Templates.ExecuteTemplate(&buf, templateData.Type, templateData)
 	return buf.String(), nil
 }
 
-var (
-	CloneTemplate       *template.Template
-	DockerTemplate      *template.Template
-	ShellTemplate       *template.Template
-	DockerBuildTemplate *template.Template
-)
+var Templates = template.New("")
 
 func InitTemplates() {
-	CloneTemplate = template.Must(template.New("clone").Parse(Clone))
-	DockerTemplate = template.Must(template.New("start-docker").Parse(Docker))
-	ShellTemplate = template.Must(template.New("shell").Parse(Shell))
-	DockerBuildTemplate = template.Must(template.New("build-docker").Parse(DockerBuild))
+	template.Must(Templates.New("clone").Parse(Clone))
+	template.Must(Templates.New("start-docker").Parse(Docker))
+	template.Must(Templates.New("shell").Parse(Shell))
+	template.Must(Templates.New("build-docker").Parse(DockerBuild))
 }
 
 func (templateData *TemplateData) UnmarshalJSON(data []byte) error {

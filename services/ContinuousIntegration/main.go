@@ -35,11 +35,6 @@ func main() {
 		log.Fatal("Failed to Open DB")
 	}
 
-	if len(os.Args) > 1 && os.Args[1] == "addUser" {
-		log.Println(auth.Login(os.Args[2], os.Args[3], true))
-		return
-	}
-
 	lib.InitTemplates()
 
 	lib.StartDockerClient()
@@ -49,6 +44,48 @@ func main() {
 	lib.StartRedisClient()
 
 	lib.StartS3Client()
+
+	if len(os.Args) > 1 {
+		switch os.Args[1] {
+		case "addUser":
+			log.Println(auth.Login(os.Args[2], os.Args[3], true))
+		case "healthCheck":
+			pages := GetTemplate().Templates()
+			log.Printf("Loaded %d templates", len(pages))
+			var repoCount int64
+			db.Db.Model(db.Repo{}).Count(&repoCount)
+			log.Printf("Repo Count: %d", repoCount)
+			dockerResponse, err := lib.DockerCli.Ping(context.Background())
+			if err != nil {
+				log.Println("Docker Ping Failed")
+			} else {
+				log.Printf("Connected to docker version: %s\n", dockerResponse.APIVersion)
+			}
+			if lib.AppInstallUrl != "" {
+				log.Printf("Github App Install URL: %s\n", lib.AppInstallUrl)
+			} else {
+				log.Println("Github App Install URL not set")
+			}
+			redisResponse := lib.Rdb.Ping(context.Background())
+			if redisResponse.Err() != nil {
+				log.Println("Redis Ping Failed")
+			} else {
+				log.Printf("Got redis ping response: %s\n", redisResponse.Val())
+			}
+			s3Response, err := lib.MinioClient.ListBuckets(context.Background())
+			if err != nil {
+				log.Println("S3 Ping Failed")
+			} else {
+				log.Println("S3 Buckets:")
+				for _, bucket := range s3Response {
+					log.Printf("Bucket: %s\n", bucket.Name)
+				}
+			}
+		default:
+			log.Println("Unknown Command")
+		}
+		return
+	}
 
 	serverRoot, err := fs.Sub(assetsFS, "assets/output")
 	if err != nil {

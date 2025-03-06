@@ -121,3 +121,13 @@ type ContainerGraphEdge struct {
 	From     Container `gorm:"foreignKey:FromName,BuildID;references:Name,BuildID"`
 	To       Container `gorm:"foreignKey:ToName,BuildID;references:Name,BuildID"`
 }
+
+type OrganizationInvite struct {
+	ID       uint
+	Username string
+
+	OrganizationID string
+	Organization   Organization
+
+	CreatedAt time.Time
+}

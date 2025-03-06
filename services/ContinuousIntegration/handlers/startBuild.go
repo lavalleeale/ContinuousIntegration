@@ -25,7 +25,6 @@ func StartBuild(c *gin.Context) {
 
 	err := binding.JSON.BindBody([]byte(data.Command), &buildData)
 	if err != nil {
-		log.Println(err)
 		c.Redirect(http.StatusFound, c.Request.Referer())
 		return
 	}

@@ -15,24 +15,19 @@ var (
 )
 
 func StartS3Client() {
+	var err error
 	ctx := context.Background()
-	minioClient, err := minio.New(os.Getenv("S3_URL"), &minio.Options{
+	MinioClient, err = minio.New(os.Getenv("S3_URL"), &minio.Options{
 		Creds: credentials.NewStaticV4(os.Getenv("S3_ACCESS_KEY_ID"), os.Getenv("S3_SECRET_ACCESS_KEY"), ""),
 	})
 	if err != nil {
 		log.Fatalln(err)
 	}
-	MinioClient = minioClient
-	err = MinioClient.MakeBucket(ctx, BucketName, minio.MakeBucketOptions{})
+	exists, err := MinioClient.BucketExists(ctx, BucketName)
 	if err != nil {
-		// Check to see if we already own this bucket (which happens if you run this twice)
-		exists, errBucketExists := MinioClient.BucketExists(ctx, BucketName)
-		if errBucketExists == nil && exists {
-			log.Printf("We already own %s\n", BucketName)
-		} else {
-			log.Fatalln(err)
-		}
-	} else {
-		log.Printf("Successfully created %s\n", BucketName)
+		log.Fatalln(err)
+	}
+	if !exists {
+		MinioClient.MakeBucket(ctx, BucketName, minio.MakeBucketOptions{})
 	}
 }
