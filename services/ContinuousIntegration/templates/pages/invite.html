@@ -1,0 +1,7 @@
+{{ define "invite" }} {{ template "Header" }}
+<div class="paper">
+  <h1>Invitation Created Successfully</h1>
+  <p>Share the link below with the invitee to join your organization:</p>
+  <input type="text" value="{{ .invite }}" readonly />
+</div>
+{{ end }}

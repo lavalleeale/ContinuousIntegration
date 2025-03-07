@@ -1,0 +1,22 @@
+{{ define "acceptInvite" }} {{ template "Header" }}
+<div class="paper">
+  <h1>Invitation to Join {{ .invite.OrganizationID}}</h1>
+  <p>
+    You have been invited to join the organization
+    <strong>{{ .invite.OrganizationID }}</strong>
+    as
+    <strong>{{.invite.Username}}</strong>
+  </p>
+  <form action="/acceptInvite" method="POST">
+    <input type="hidden" name="data" value="{{ .data }}" />
+    <input
+      class="textfield"
+      type="password"
+      name="password"
+      id="password"
+      placeholder="Password"
+    />
+    <button type="submit" class="btn btn-blue">Accept Invite</button>
+  </form>
+</div>
+{{end}}

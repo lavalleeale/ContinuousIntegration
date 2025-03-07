@@ -1,0 +1,10 @@
+{{ define "sendInvite" }} {{ template "Header" }}
+<div class="paper">
+  <h1>Send Invite to Join Your Organization</h1>
+  <form action="/send-invite" method="POST">
+    <input type="hidden" name="organizationId" value="{{ .OrganizationID }}" />
+    <input id="username" name="username" class="textfield" required />
+    <button type="submit" class="btn btn-blue">Send Invite</button>
+  </form>
+</div>
+{{ end }}

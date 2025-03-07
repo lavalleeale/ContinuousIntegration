@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"encoding/json"
 	"errors"
 	"net/http"
 	"os"
@@ -9,6 +10,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/lavalleeale/ContinuousIntegration/lib/db"
 	"github.com/lavalleeale/ContinuousIntegration/services/ContinuousIntegration/lib"
+	sessionseal "github.com/lavalleeale/SessionSeal"
 	"gorm.io/gorm"
 )
 
@@ -102,6 +104,44 @@ func ContainerPage(c *gin.Context) {
 		}
 	}
 	c.Redirect(http.StatusFound, "/")
+}
+
+func InvitePage(c *gin.Context) {
+	var user db.User
+
+	if lib.GetUser(c, &user) {
+		c.HTML(http.StatusOK, "sendInvite", gin.H{})
+		return
+	}
+	c.Redirect(http.StatusFound, "/")
+}
+
+func AcceptInvitePage(c *gin.Context) {
+	// Retrieve sealed invite data from query parameter
+	sealedData := c.Query("data")
+	if sealedData == "" {
+		c.String(http.StatusBadRequest, "Missing invite data")
+		return
+	}
+
+	// Unseal and decode the invite data using JWT_SECRET
+	marshalledInvite, err := sessionseal.Unseal(os.Getenv("JWT_SECRET"), sealedData)
+	if err != nil {
+		c.String(http.StatusBadRequest, "Invalid invite token")
+		return
+	}
+
+	var invite db.OrganizationInvite
+	if err := json.Unmarshal(marshalledInvite, &invite); err != nil {
+		c.String(http.StatusBadRequest, "Invalid invite data")
+		return
+	}
+
+	// Render the invite acceptance page
+	c.HTML(http.StatusOK, "acceptInvite", gin.H{
+		"data":   sealedData,
+		"invite": invite,
+	})
 }
 
 type BuildPageData struct {

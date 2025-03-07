@@ -139,6 +139,11 @@ func main() {
 
 	r.POST("/build/:buildId/container/:containerName/stop", handlers.StopContainer)
 
+	r.GET("/invite", handlers.InvitePage)
+	r.POST("/send-invite", handlers.InviteUser)
+	r.GET("/acceptInvite", handlers.AcceptInvitePage)
+	r.POST("/acceptInvite", handlers.AcceptInvite)
+
 	srv := &http.Server{
 		Addr:    ":8080",
 		Handler: r,
