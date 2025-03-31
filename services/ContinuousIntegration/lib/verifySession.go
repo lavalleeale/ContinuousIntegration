@@ -2,6 +2,7 @@ package lib
 
 import (
 	"encoding/json"
+	"log"
 	"os"
 
 	"github.com/gin-gonic/gin"
@@ -14,7 +15,11 @@ func GetUser(c *gin.Context, user *db.User) bool {
 	username, ok := session["username"]
 	if ok {
 		user.Username = username
-		db.Db.First(&user)
+		err := db.Db.First(&user).Error
+		if err != nil {
+			log.Println(err)
+			return false
+		}
 		return true
 	}
 	return false

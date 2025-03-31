@@ -7,8 +7,8 @@ declare global {
        * @example cy.dataCy('greeting')
        */
       login(name: string): void;
+      logout(): void;
     }
   }
 }
-export { };
-
+export {};
